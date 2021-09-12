@@ -1,0 +1,15 @@
+DROP TABLE IF EXISTS gatomemes;
+CREATE TABLE gatomemes (
+  Id        INT AUTO_INCREMENT NOT NULL,
+  Line1     VARCHAR(255) NOT NULL,
+  Line2     VARCHAR(255) NOT NULL,
+  FileName VARCHAR(255),
+  PRIMARY KEY (`id`)
+);
+
+INSERT INTO gatomemes 
+  (Line1, Line2)
+VALUES 
+  ('LINE1 TEXT1', 'LINE2 TEXT1'),
+  ('LINE1 TEXT2', 'LINE2 TEXT2'),
+  ('LINE1 TEXT3', 'LINE2 TEXT3');
