@@ -38,7 +38,7 @@ func openPngFromDisk(filename string) {
 
 // gets response fro GetNew(), converts it to png and returns result to
 // font drawing
-func convertRespons(responseBody io.ReadCloser) {
+func convertResponse(responseBody io.ReadCloser) {
 	log.Println("conseguir un nuevo gatito ")
 	src := convertJpegToPng(responseBody)
 	drawTextOnImage(src.(draw.Image))

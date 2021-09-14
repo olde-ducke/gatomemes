@@ -33,6 +33,12 @@ func testHandler(context *gin.Context) {
 	context.Redirect(http.StatusFound, "/")
 }
 
+func loginFormHandler(context *gin.Context) {
+	gatomemes.HandleLogin(context.Request)
+	//context.HTML(http.StatusOK, "index.html", gin.H{"image": "getNewGatito()"})
+	context.Redirect(http.StatusFound, "/")
+}
+
 func main() {
 	// server
 	router := gin.Default()
@@ -43,5 +49,6 @@ func main() {
 	router.GET("/new", newHandler)
 	router.GET("/chaos", chaosHandler)
 	router.GET("/test", testHandler)
+	router.POST("/login", loginFormHandler)
 	router.Run(":8080")
 }

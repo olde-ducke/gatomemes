@@ -11,14 +11,33 @@
       color: #F9ADA0;
       font-family: Tahoma, Verdana, sans-serif;
       font-size: 2vw;
+      }
+    #content {
       text-align: center;
-      max-height: fit-content;
+      float: left;
+      width: 33%;
       }
     img {
-      max-width: 75%;
+      max-width: 100%;
       height: auto;
     }
-    a:link, a:visited {
+    form {
+      float: left;
+      width: 33%;
+      margin-top: 30px;
+      margin-left: 30px;
+    }
+    input {
+      font-family: Tahoma, Verdana, sans-serif;
+      font-size: 2vw;
+      width: 50%;
+      background-color: #271a26;
+      color: #F9ADA0;
+      border-radius: 10px;
+      border-color: #C65B7C;
+      margin-bottom: 10px;
+    }
+    .button {
       background-color: #C65B7C;
       color: #EEEEEE;
       padding: 10px 20px;
@@ -26,21 +45,31 @@
       text-decoration: none;
       display: inline-block;
       border-radius: 10px;
+      border-color: transparent;
     }
-    a:hover, a:active {
+    .button:hover {
       background-color: #F9627D;
     }
     
   </style>
   <body>
-  <header></header>
-  <span>El señor gato es infeliz</span>
+  <header>
+  </header>
   <main>
+    <form method="post" action="/login">
+      <input type="text" name="login" required placeholder="acceso" maxlength="20"><br>
+      <input type="password" name="password" required placeholder="contraseña" maxlength="20"><br>
+      <input type="submit" class="button" name="loginuser" value="login">
+      <input type="submit" class="button" name="newuser" value="register">
+    </form>
+  <div id="content">
+    <span>El señor gato es infeliz</span>
   <br>
   <img src="gato.png" alt="señor no gato real">
   <div>
-    <a href="/new">gatito nuevo</a>
-    <a href="/chaos">gato del caos</a>
+    <a class="button" href="/new">gatito nuevo</a>
+    <a class="button" href="/chaos">gato del caos</a>
+  </div>
   </div>
   </main>
   <footer></footer>

@@ -26,7 +26,17 @@ func GetNew(chaos bool) {
 	resp, err := http.Get(os.Getenv("PROJECTURL"))
 	checkError("response: ", err)
 	defer resp.Body.Close()
-	convertRespons(resp.Body)
+	convertResponse(resp.Body)
+}
+
+func HandleLogin(request *http.Request) {
+	err := request.ParseForm()
+	checkError("HandleLogin: ", err)
+	if _, ok := request.PostForm["newuser"]; ok {
+		addNewUser(request.PostForm["login"][0], request.PostForm["password"][0])
+	} else if _, ok := request.PostForm["loginuser"]; ok {
+		loginUser(request.PostForm["login"][0], request.PostForm["password"][0])
+	}
 }
 
 func init() {
