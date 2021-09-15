@@ -16,19 +16,13 @@ VALUES
 
 DROP TABLE IF EXISTS user;
 CREATE TABLE user (
-  id            INT UNSIGNED AUTO_INCREMENT NOT NULL,
-  user_name     VARCHAR(20) NOT NULL,
-  password      TEXT(20) NOT NULL,
-  is_disabled   BOOL NOT NULL DEFAULT 0,
+  id              INT UNSIGNED AUTO_INCREMENT NOT NULL,
+  user_name       VARCHAR(20) NOT NULL,
+  password        VARCHAR(20) NOT NULL,
+  session_key     VARCHAR(255),
+  is_disabled     BOOL NOT NULL DEFAULT 0,
+  reg_time        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  last_seen_time  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY(id),
   UNIQUE(user_name)
-);
-
-DROP TABLE IF EXISTS user_session;
-CREATE TABLE user_session (
-  session_key     VARCHAR(255) NOT NULL,
-  user_id         INT UNSIGNED NOT NULL,
-  login_time      DATETIME NOT NULL,
-  last_seen_time  DATETIME NOT NULL,
-  PRIMARY KEY     (session_key)
 );

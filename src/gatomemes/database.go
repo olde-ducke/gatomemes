@@ -2,6 +2,8 @@ package gatomemes
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"os"
@@ -51,44 +53,83 @@ func getMaxId() (id int) {
 	return id
 }
 
-func addNewUser(login string, password string) {
+func addNewUser(login string, password string) (sessionKey string, nameErr error) {
 	log.Println("addNewUser: ", login, password)
-	// TODO: for now just stores Unix time as session key
-	sessionKey := time.Now().UnixMicro()
+	// TODO: for now session key is just a random number in hex
+	rand.Seed(time.Now().UnixNano())
+	sessionKey = fmt.Sprintf("%X", rand.Intn(2_000_000_000))
+	nameErr = errors.New("name_taken")
 	// TODO: for now password is stored as plaintext
-	// TODO: tell frontend that username is taken
 	_, err := db.Exec("INSERT INTO user (user_name, password, session_key) VALUES (?, ?, ?)", login, password, sessionKey)
 	if err != nil {
 		log.Println("registration was not succesfull", err)
+		return "", nameErr
 	} else {
 		log.Println("succesfull registration")
+		return sessionKey, nil
 	}
 }
 
-func loginUser(login string, gotPassword string) {
-	log.Println("loginUser: ", login, gotPassword)
-	// TODO: don't just crash server on the wrong login
+func updateSession(login string, gotPassword string) (sessionKey string, accessErr error) {
+	log.Println("updateSession: ", login, gotPassword)
+	// TODO: handle internal errors
 	rows, err := db.Query("SELECT id, password FROM user WHERE user_name = ?", login)
-	if !rows.Next() {
-		log.Println("wrong login")
-		return
+	if err != nil {
+		log.Println(err)
 	}
 	defer rows.Close()
 
+	accessErr = errors.New("wrong_credentials")
+	if !rows.Next() {
+		log.Println("wrong login")
+		return "", accessErr
+	}
+
 	var wantPassword string
 	var id int64
+	// TODO: for now session key is just a random number in hex
+	rand.Seed(time.Now().UnixNano())
+	sessionKey = fmt.Sprintf("%X", rand.Intn(2_000_000_000))
+
 	err = rows.Scan(&id, &wantPassword)
 	checkError("loginUser", err)
 
 	if gotPassword == wantPassword {
 		log.Println("successfull login")
-		sessionKey := time.Now().UnixMicro()
 		_, err = db.Exec("UPDATE user SET session_key = ? WHERE id = ?", sessionKey, id)
 		checkError("addNewUser", err)
-	} else {
-		log.Println("wrong password")
+		if err == nil {
+			return sessionKey, nil
+		}
 	}
-	// TODO: for now just stores Unix time as session key
+	log.Println("wrong password")
+	return "", accessErr
+}
+
+func retrieveUserInfo(sessionKey string) (result map[string]interface{}, err error) {
+	result = make(map[string]interface{})
+	rows, err := db.Query("SELECT id, user_name, password, reg_time, is_disabled FROM user WHERE session_key = ?", sessionKey)
+	if err != nil {
+		return result, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		err = errors.New("key not found")
+		return result, err
+	}
+	var id int
+	var is_disabled bool
+	var name, password, regTime string
+	err = rows.Scan(&id, &name, &password, &regTime, &is_disabled)
+	if err != nil {
+		return result, err
+	}
+	result["id"] = id
+	result["username"] = name
+	result["password"] = password
+	result["regtime"] = regTime
+	result["isdisabled"] = is_disabled
+	return result, nil
 }
 
 func init() {

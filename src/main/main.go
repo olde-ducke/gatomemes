@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -10,7 +11,34 @@ import (
 
 // rendering template, template paramers unused for now
 func rootHandler(context *gin.Context) {
-	context.HTML(http.StatusOK, "index.html", gin.H{"image": "getNewGatito()"})
+	text, err := context.Cookie("error")
+	// TODO: server internal errors
+	if err == nil {
+		log.Println("error cookie")
+		context.SetCookie("error", "", -1, "/", "localhost", true, true)
+		if text == "wrong_credentials" {
+			text = "nombre de usuario/contraseña incorrectos"
+		} else {
+			text = "se toma el nombre de usuario "
+		}
+		context.HTML(http.StatusUnauthorized, "index.html", gin.H{"errortext": text, "userinfo": "hidden"})
+		return
+	}
+
+	sessionKey, err := context.Cookie("sessionkey")
+	if err != nil {
+		context.HTML(http.StatusOK, "index.html", gin.H{"loginerror": "hidden", "userinfo": "hidden"})
+		log.Println("no cookie")
+		return
+	}
+	//gatomemes.GetUserInfo(sessionKey)
+	log.Println(sessionKey)
+	result, err := gatomemes.GetUserInfo(sessionKey)
+	if err != nil {
+		context.HTML(http.StatusInternalServerError, "index.html", gin.H{"loginerror": "hidden", "loginform": "hidden"})
+	}
+	log.Println(result)
+	context.HTML(http.StatusOK, "index.html", result)
 }
 
 // fake /gato.jpeg response
@@ -34,8 +62,19 @@ func testHandler(context *gin.Context) {
 }
 
 func loginFormHandler(context *gin.Context) {
-	gatomemes.HandleLogin(context.Request)
-	//context.HTML(http.StatusOK, "index.html", gin.H{"image": "getNewGatito()"})
+	context.SetSameSite(http.SameSiteStrictMode)
+	sessionKey, err := gatomemes.HandleLogin(context.Request)
+	if err != nil {
+		context.SetCookie("error", err.Error(), 86400, "/", "localhost", true, true)
+		context.Redirect(http.StatusFound, "/")
+	} else {
+		context.SetCookie("sessionkey", sessionKey, 86400, "/", "localhost", true, true)
+		context.Redirect(http.StatusFound, "/")
+	}
+}
+
+func logoutHandler(context *gin.Context) {
+	context.SetCookie("sessionkey", "", -1, "/", "localhost", true, true)
 	context.Redirect(http.StatusFound, "/")
 }
 
@@ -50,5 +89,6 @@ func main() {
 	router.GET("/chaos", chaosHandler)
 	router.GET("/test", testHandler)
 	router.POST("/login", loginFormHandler)
+	router.GET("/logout", logoutHandler)
 	router.Run(":8080")
 }

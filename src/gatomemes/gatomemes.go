@@ -29,14 +29,30 @@ func GetNew(chaos bool) {
 	convertResponse(resp.Body)
 }
 
-func HandleLogin(request *http.Request) {
+func HandleLogin(request *http.Request) (string, error) {
 	err := request.ParseForm()
 	checkError("HandleLogin: ", err)
+	var sessionKey string
 	if _, ok := request.PostForm["newuser"]; ok {
-		addNewUser(request.PostForm["login"][0], request.PostForm["password"][0])
+		sessionKey, err = addNewUser(request.PostForm["login"][0], request.PostForm["password"][0])
 	} else if _, ok := request.PostForm["loginuser"]; ok {
-		loginUser(request.PostForm["login"][0], request.PostForm["password"][0])
+		sessionKey, err = updateSession(request.PostForm["login"][0], request.PostForm["password"][0])
 	}
+	if sessionKey != "" {
+		return sessionKey, nil
+	}
+	return "", err
+}
+
+func GetUserInfo(sessionKey string) (result map[string]interface{}, err error) {
+	result, err = retrieveUserInfo(sessionKey)
+	if err != nil {
+		log.Println(err)
+		return result, err
+	}
+	result["loginerror"] = "hidden"
+	result["loginform"] = "hidden"
+	return result, err
 }
 
 func init() {
