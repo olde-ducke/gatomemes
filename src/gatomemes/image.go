@@ -14,10 +14,10 @@ import (
 
 var imgbytes []byte
 
-func encodeImage(dst image.Image) {
+func encodeImage(src image.Image) {
 	// convert to png//jpeg
 	buffer := new(bytes.Buffer)
-	err := png.Encode(buffer, dst) //, &jpeg.Options{Quality: 98})
+	err := png.Encode(buffer, src) //, &jpeg.Options{Quality: 98})
 	checkError("encode png: ", err)
 	imgbytes = buffer.Bytes()
 }
@@ -41,7 +41,7 @@ func openPngFromDisk(filename string) {
 func convertResponse(responseBody io.ReadCloser) {
 	log.Println("conseguir un nuevo gatito ")
 	src := convertJpegToPng(responseBody)
-	drawTextOnImage(src.(draw.Image))
+	fitTextOnImage(src.(draw.Image))
 }
 
 func convertJpegToPng(data io.ReadCloser) (src image.Image) {

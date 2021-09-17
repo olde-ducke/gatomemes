@@ -19,9 +19,9 @@ func GetImageBytes() []byte {
 func GetNew(chaos bool) {
 	// get image from web
 	if chaos {
-		memeText.dbAccessFunc = getChaoticLines
+		text.dbAccessFunc = getChaoticLines
 	} else {
-		memeText.dbAccessFunc = getRandomLines
+		text.dbAccessFunc = getRandomLines
 	}
 	resp, err := http.Get(os.Getenv("PROJECTURL"))
 	checkError("response: ", err)

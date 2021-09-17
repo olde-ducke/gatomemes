@@ -114,7 +114,7 @@ func retrieveUserInfo(sessionKey string) (result map[string]interface{}, err err
 	}
 	defer rows.Close()
 	if !rows.Next() {
-		err = errors.New("key not found")
+		err = errors.New("user with given key not found")
 		return result, err
 	}
 	var id int

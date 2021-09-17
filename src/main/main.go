@@ -28,16 +28,18 @@ func rootHandler(context *gin.Context) {
 	sessionKey, err := context.Cookie("sessionkey")
 	if err != nil {
 		context.HTML(http.StatusOK, "index.html", gin.H{"loginerror": "hidden", "userinfo": "hidden"})
-		log.Println("no cookie")
+		log.Println("sessionkey not found: ", err)
 		return
 	}
 	//gatomemes.GetUserInfo(sessionKey)
 	log.Println(sessionKey)
 	result, err := gatomemes.GetUserInfo(sessionKey)
 	if err != nil {
-		context.HTML(http.StatusInternalServerError, "index.html", gin.H{"loginerror": "hidden", "loginform": "hidden"})
+		context.SetCookie("sessionkey", "", -1, "/", "localhost", true, true) // ???
+		context.HTML(http.StatusOK, "index.html", gin.H{"loginerror": "hidden", "userinfo": "hidden"})
+		return
 	}
-	log.Println(result)
+	//log.Println(result)
 	context.HTML(http.StatusOK, "index.html", result)
 }
 
