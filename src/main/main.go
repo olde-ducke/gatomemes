@@ -9,12 +9,14 @@ import (
 	"github.com/olde-ducke/gatomemes/src/gatomemes"
 )
 
-// rendering template, template paramers unused for now
+// rendering template
 func rootHandler(context *gin.Context) {
+	getIdentity(context)
 	text, err := context.Cookie("error")
 	// TODO: server internal errors
+	// if there is an error cookie change template accordingly
 	if err == nil {
-		log.Println("error cookie")
+		log.Println("no session cookie")
 		context.SetCookie("error", "", -1, "/", "localhost", true, true)
 		if text == "wrong_credentials" {
 			text = "nombre de usuario/contraseña incorrectos"
@@ -32,7 +34,6 @@ func rootHandler(context *gin.Context) {
 		return
 	}
 	//gatomemes.GetUserInfo(sessionKey)
-	log.Println(sessionKey)
 	result, err := gatomemes.GetUserInfo(sessionKey)
 	if err != nil {
 		context.SetCookie("sessionkey", "", -1, "/", "localhost", true, true) // ???
@@ -60,24 +61,39 @@ func chaosHandler(context *gin.Context) {
 
 func testHandler(context *gin.Context) {
 	gatomemes.DrawTestOutline()
-	context.Redirect(http.StatusFound, "/")
+	//context.Redirect(http.StatusFound, "/")
 }
 
 func loginFormHandler(context *gin.Context) {
-	context.SetSameSite(http.SameSiteStrictMode)
-	sessionKey, err := gatomemes.HandleLogin(context.Request)
+	sessionKey, identity, err := gatomemes.HandleLogin(context.Request, getIdentity(context))
 	if err != nil {
 		context.SetCookie("error", err.Error(), 86400, "/", "localhost", true, true)
 		context.Redirect(http.StatusFound, "/")
 	} else {
 		context.SetCookie("sessionkey", sessionKey, 86400, "/", "localhost", true, true)
+		context.SetCookie("identity", identity, 86400, "/", "localhost", true, true)
 		context.Redirect(http.StatusFound, "/")
 	}
 }
 
 func logoutHandler(context *gin.Context) {
+	sessionKey, err := context.Cookie("sessionkey")
+	if err != nil {
+		log.Println(err)
+		context.Redirect(http.StatusFound, "/")
+	}
+	gatomemes.LogOff(sessionKey)
 	context.SetCookie("sessionkey", "", -1, "/", "localhost", true, true)
 	context.Redirect(http.StatusFound, "/")
+}
+
+func getIdentity(context *gin.Context) string {
+	context.SetSameSite(http.SameSiteStrictMode)
+	identity, err := context.Cookie("identity")
+	if err != nil {
+		context.SetCookie("identity", gatomemes.GenerateUUID(), 86400, "/", "localhost", true, true)
+	}
+	return identity
 }
 
 func main() {

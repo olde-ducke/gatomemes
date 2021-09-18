@@ -16,13 +16,16 @@ VALUES
 
 DROP TABLE IF EXISTS user;
 CREATE TABLE user (
-  id              INT UNSIGNED AUTO_INCREMENT NOT NULL,
+  identity        VARCHAR(36) NOT NULL,
   user_name       VARCHAR(20) NOT NULL,
   password        VARCHAR(20) NOT NULL,
-  session_key     VARCHAR(255),
+  session_key     VARCHAR(36),
   is_disabled     BOOL NOT NULL DEFAULT 0,
+  is_admin        BOOL NOT NULL DEFAULT 0,
+  is_root         BOOL NOT NULL DEFAULT 0,
   reg_time        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   last_seen_time  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY(id),
-  UNIQUE(user_name)
+  PRIMARY KEY(identity),
+  UNIQUE(user_name),
+  UNIQUE(session_key)
 );
