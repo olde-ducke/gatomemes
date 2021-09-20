@@ -1,10 +1,10 @@
 DROP TABLE IF EXISTS gatomemes;
 CREATE TABLE gatomemes (
-  id        INT UNSIGNED AUTO_INCREMENT NOT NULL,
-  line1     TEXT(255) NOT NULL,
-  line2     TEXT(255) NOT NULL,
-  FileName TEXT(255),
-  PRIMARY KEY (id)
+  id        INT UNSIGNED AUTO_INCREMENT,
+  line1     VARCHAR(255) NOT NULL,
+  line2     VARCHAR(255) NOT NULL,
+  PRIMARY KEY (id),
+  CONSTRAINT unique_lines UNIQUE (line1, line2)
 );
 
 INSERT INTO gatomemes 
@@ -14,11 +14,19 @@ VALUES
   ('LINE1 TEXT2', 'LINE2 TEXT2'),
   ('LINE1 TEXT3', 'LINE2 TEXT3');
 
+DROP TABLE IF EXISTS image_data;
+CREATE TABLE image_data (
+  id          INT UNSIGNED AUTO_INCREMENT NOT NULL,
+  text_id     INT UNSIGNED NOT NULL,
+  file_name   VARCHAR(255),
+  PRIMARY KEY (id)
+);
+
 DROP TABLE IF EXISTS user;
 CREATE TABLE user (
   identity        VARCHAR(36) NOT NULL,
   user_name       VARCHAR(20) NOT NULL,
-  password        VARCHAR(20) NOT NULL,
+  password        VARCHAR(255) NOT NULL,
   session_key     VARCHAR(36),
   is_disabled     BOOL NOT NULL DEFAULT 0,
   is_admin        BOOL NOT NULL DEFAULT 0,

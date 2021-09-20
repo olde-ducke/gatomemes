@@ -3,13 +3,16 @@ package gatomemes
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var db *sql.DB
@@ -58,23 +61,31 @@ func getMaxId() (id int) {
 }
 
 func addNewUser(login string, password string, identity string) (string, string, error) {
-	log.Println("addNewUser: ", login, password)
-	rows, err := db.Query("SELECT identity FROM user WHERE EXISTS (SELECT identity FROM user WHERE identity = ?)", identity)
+	rows, err := db.Query("SELECT identity FROM user WHERE identity = ?", identity)
 	if err != nil {
 		log.Println(err)
 	}
-	defer rows.Close()
-
+	// force generating new identity in case user deleted cookie or id already in DB
 	if rows.Next() || identity == "" {
 		log.Println("identity already exists or cookie deleted")
 		identity = getUUIDString()
 	}
+	rows.Close()
+
+	encryptedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+	if err != nil {
+		log.Println("registration was not succesfull", err)
+		return "", "", err
+	}
+	var sbuilder strings.Builder
+	for _, v := range encryptedPassword {
+		fmt.Fprintf(&sbuilder, "%c", v)
+	}
 
 	sessionKey := getUUIDString()
 	nameErr := errors.New("name_taken")
-	// TODO: for now password is stored as plaintext
 	_, err = db.Exec("INSERT INTO user (identity, user_name, password, session_key) VALUES (?, ?, ?, ?)",
-		identity, login, password, sessionKey)
+		identity, login, sbuilder.String(), sessionKey)
 	if err != nil {
 		log.Println("registration was not succesfull", err)
 		return "", "", nameErr
@@ -85,39 +96,31 @@ func addNewUser(login string, password string, identity string) (string, string,
 }
 
 func updateSession(login string, gotPassword string, identity string) (sessionKey string, identityDB string, accessErr error) {
-	log.Println("updateSession: ", login, gotPassword)
 	// TODO: handle internal errors
-	rows, err := db.Query("SELECT identity, password FROM user WHERE user_name = ?", login)
-	if err != nil {
-		log.Println(err)
-	}
-	defer rows.Close()
-
+	row := db.QueryRow("SELECT identity, password FROM user WHERE user_name = ?", login)
+	var wantPassword string
+	err := row.Scan(&identityDB, &wantPassword)
 	accessErr = errors.New("wrong_credentials")
-	if !rows.Next() {
-		log.Println("wrong login")
+	if err != nil {
 		return "", "", accessErr
 	}
 
-	var wantPassword string
-	// generate new session key
-	sessionKey = getUUIDString()
-
-	err = rows.Scan(&identityDB, &wantPassword)
-	checkError("loginUser", err)
-
-	// FIXME: string comparison is bad?
 	if identity != identityDB {
 		log.Println("different identity in DB")
 	}
 
-	if gotPassword == wantPassword {
+	// generate new session key
+	sessionKey = getUUIDString()
+	if bcrypterr := bcrypt.CompareHashAndPassword([]byte(wantPassword), []byte(gotPassword)); bcrypterr == nil {
 		log.Println("successfull login")
 		_, err = db.Exec("UPDATE user SET session_key = ? WHERE identity = ?", sessionKey, identityDB)
+		// FIXME: checkerror fatals on errors
 		checkError("updateSession", err)
 		if err == nil {
 			return sessionKey, identityDB, nil
 		}
+	} else {
+		log.Println(bcrypterr)
 	}
 	log.Println("wrong password")
 	return "", "", accessErr
@@ -125,33 +128,29 @@ func updateSession(login string, gotPassword string, identity string) (sessionKe
 
 func retrieveUserInfo(sessionKey string) (result map[string]interface{}, err error) {
 	result = make(map[string]interface{})
-	rows, err := db.Query("SELECT identity, user_name, password, reg_time, is_disabled FROM user WHERE session_key = ?", sessionKey)
+	row := db.QueryRow("SELECT user_name, reg_time, is_disabled, is_admin, is_root FROM user WHERE session_key = ?", sessionKey)
+	var isDisabled, isAdmin, isRoot bool
+	var name, regTime string
+	err = row.Scan(&name, &regTime, &isDisabled, &isAdmin, &isRoot)
 	if err != nil {
+		log.Println("user with given key not found")
 		return result, err
 	}
-	defer rows.Close()
-	if !rows.Next() {
-		err = errors.New("user with given key not found")
-		return result, err
-	}
-	var identity string
-	var is_disabled bool
-	var name, password, regTime string
-	err = rows.Scan(&identity, &name, &password, &regTime, &is_disabled)
-	if err != nil {
-		return result, err
-	}
-	result["identity"] = identity
 	result["username"] = name
-	result["password"] = password
 	result["regtime"] = regTime
-	result["isdisabled"] = is_disabled
+	result["isdisabled"] = isDisabled
+	result["isadmin"] = isAdmin
+	result["isroot"] = isRoot
 	return result, nil
 }
 
 func deleteSessionKey(sessionKey string) (err error) {
 	_, err = db.Exec("UPDATE user SET session_key = NULL WHERE session_key = ?", sessionKey)
 	return err
+}
+
+func fillDb() {
+	//select line1, line2 from gatomemes where id in (select text_id from image_data where file_name IS NULL);
 }
 
 func init() {

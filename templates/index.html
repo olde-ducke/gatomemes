@@ -79,11 +79,11 @@
       <span id="loginerror" {{.loginerror}}>{{.errortext}}</span>
     </form>
     <div id="userinfo" {{.userinfo}}>
-      id:          {{.identity}}                 <br>
-      UserName:    {{.username}}                 <br>
-      Password:    {{.password}}                 <br>
-      Registered:  {{.regtime}}                  <br>
-      Is Disabled: {{.isdisabled}}               <br>
+      UserName:    {{.username}}    <br>
+      Registered:  {{.regtime}}     <br>
+      Is Disabled: {{.isdisabled}}  <br>
+      Is Admin:    {{.isadmin}}     <br>
+      Is Root:     {{.isroot}}      <br>
       <a id="logout" href="/logout">logout</a>
     </div>
   <div id="content">

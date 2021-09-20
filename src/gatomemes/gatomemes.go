@@ -57,7 +57,9 @@ func GetUserInfo(sessionKey string) (result map[string]interface{}, err error) {
 
 func LogOff(sessionKey string) {
 	err := deleteSessionKey(sessionKey)
-	log.Println(err)
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 func GenerateUUID() string {

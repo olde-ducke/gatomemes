@@ -9,6 +9,8 @@ import (
 	"github.com/olde-ducke/gatomemes/src/gatomemes"
 )
 
+var cache map[string][]byte
+
 // rendering template
 func rootHandler(context *gin.Context) {
 	getIdentity(context)
@@ -17,7 +19,7 @@ func rootHandler(context *gin.Context) {
 	// if there is an error cookie change template accordingly
 	if err == nil {
 		log.Println("no session cookie")
-		context.SetCookie("error", "", -1, "/", "localhost", true, true)
+		context.SetCookie("error", "", -1, "/", "", false, true)
 		if text == "wrong_credentials" {
 			text = "nombre de usuario/contraseña incorrectos"
 		} else {
@@ -36,7 +38,7 @@ func rootHandler(context *gin.Context) {
 	//gatomemes.GetUserInfo(sessionKey)
 	result, err := gatomemes.GetUserInfo(sessionKey)
 	if err != nil {
-		context.SetCookie("sessionkey", "", -1, "/", "localhost", true, true) // ???
+		context.SetCookie("sessionkey", "", -1, "/", "", false, true) // ???
 		context.HTML(http.StatusOK, "index.html", gin.H{"loginerror": "hidden", "userinfo": "hidden"})
 		return
 	}
@@ -46,16 +48,48 @@ func rootHandler(context *gin.Context) {
 
 // fake /gato.jpeg response
 func imageHandler(context *gin.Context) {
-	context.Data(http.StatusOK, "image/png", gatomemes.GetImageBytes())
+	//TODO: 304 status does not reset on redirects, so there is no second request for gatp.png
+	/*sha := sha1.Sum(gatomemes.GetImageBytes())
+	var sbuilder strings.Builder
+	sbuilder.Grow(20)
+	for _, v := range sha {
+		fmt.Fprintf(&sbuilder, "%x", v)
+	}
+	etagimg := sbuilder.String()
+	context.Header("Cache-Control", "public, max-age=86400")
+	context.Header("ETag", etagimg)
+	etag := context.GetHeader("If-None-Match")
+	//log.Println(etag)
+	if etag == etagimg {
+		log.Println("test1")
+		context.Status(http.StatusNotModified)
+	} else {
+		log.Println("test2")
+		context.Data(http.StatusOK, "image/png", gatomemes.GetImageBytes())
+	}
+	context.Header("ETag", "")
+	*/
+	identity := getIdentity(context)
+	if imgbytes, ok := cache[identity]; ok {
+		context.Data(http.StatusOK, "image/png", imgbytes)
+	} else {
+		cache[identity] = gatomemes.GetImageBytes()
+		context.Data(http.StatusOK, "image/png", cache[identity])
+	}
+	//log.Println(len(cache))
 }
 
 func newHandler(context *gin.Context) {
 	gatomemes.GetNew(false)
+	identity := getIdentity(context)
+	delete(cache, identity)
 	context.Redirect(http.StatusFound, "/")
 }
 
 func chaosHandler(context *gin.Context) {
 	gatomemes.GetNew(true)
+	identity := getIdentity(context)
+	delete(cache, identity)
 	context.Redirect(http.StatusFound, "/")
 }
 
@@ -67,11 +101,11 @@ func testHandler(context *gin.Context) {
 func loginFormHandler(context *gin.Context) {
 	sessionKey, identity, err := gatomemes.HandleLogin(context.Request, getIdentity(context))
 	if err != nil {
-		context.SetCookie("error", err.Error(), 86400, "/", "localhost", true, true)
+		context.SetCookie("error", err.Error(), 86400, "/", "", false, true)
 		context.Redirect(http.StatusFound, "/")
 	} else {
-		context.SetCookie("sessionkey", sessionKey, 86400, "/", "localhost", true, true)
-		context.SetCookie("identity", identity, 86400, "/", "localhost", true, true)
+		context.SetCookie("sessionkey", sessionKey, 86400, "/", "", false, true)
+		context.SetCookie("identity", identity, 86400, "/", "", false, true)
 		context.Redirect(http.StatusFound, "/")
 	}
 }
@@ -83,7 +117,7 @@ func logoutHandler(context *gin.Context) {
 		context.Redirect(http.StatusFound, "/")
 	}
 	gatomemes.LogOff(sessionKey)
-	context.SetCookie("sessionkey", "", -1, "/", "localhost", true, true)
+	context.SetCookie("sessionkey", "", -1, "/", "", false, true)
 	context.Redirect(http.StatusFound, "/")
 }
 
@@ -91,7 +125,7 @@ func getIdentity(context *gin.Context) string {
 	context.SetSameSite(http.SameSiteStrictMode)
 	identity, err := context.Cookie("identity")
 	if err != nil {
-		context.SetCookie("identity", gatomemes.GenerateUUID(), 86400, "/", "localhost", true, true)
+		context.SetCookie("identity", gatomemes.GenerateUUID(), 86400, "/", "", false, true)
 	}
 	return identity
 }
@@ -99,6 +133,8 @@ func getIdentity(context *gin.Context) string {
 func main() {
 	// server
 	router := gin.Default()
+
+	cache = make(map[string][]byte, 10)
 
 	router.LoadHTMLFiles("templates/index.html")
 	router.GET("/", rootHandler)
