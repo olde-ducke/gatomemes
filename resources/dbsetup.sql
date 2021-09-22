@@ -19,8 +19,23 @@ CREATE TABLE image_data (
   id          INT UNSIGNED AUTO_INCREMENT NOT NULL,
   text_id     INT UNSIGNED NOT NULL,
   file_name   VARCHAR(255),
+  likes       INT UNSIGNED NOT NULL DEFAULT 0,
+  dislikes    INT UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (id)
 );
+
+DROP TABLE IF EXISTS comments;
+CREATE TABLE comments (
+  id          INT UNSIGNED AUTO_INCREMENT NOT NULL,
+  image_id    INT UNSIGNED NOT NULL,
+  identity    VARCHAR(36),
+  time        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  comment     VARCHAR(255),
+  PRIMARY KEY (id)
+);
+
+INSERT INTO image_data (text_id)
+SELECT id FROM gatomemes ORDER BY id;
 
 DROP TABLE IF EXISTS user;
 CREATE TABLE user (

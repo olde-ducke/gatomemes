@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 
@@ -95,7 +96,7 @@ func chaosHandler(context *gin.Context) {
 
 func testHandler(context *gin.Context) {
 	gatomemes.DrawTestOutline()
-	//context.Redirect(http.StatusFound, "/")
+	context.HTML(http.StatusOK, "test.html", nil)
 }
 
 func loginFormHandler(context *gin.Context) {
@@ -136,7 +137,7 @@ func main() {
 
 	cache = make(map[string][]byte, 10)
 
-	router.LoadHTMLFiles("templates/index.html")
+	router.LoadHTMLFiles("templates/index.html", "templates/test.html")
 	router.GET("/", rootHandler)
 	router.GET("/gato.png", imageHandler)
 	router.GET("/new", newHandler)
@@ -145,4 +146,6 @@ func main() {
 	router.POST("/login", loginFormHandler)
 	router.GET("/logout", logoutHandler)
 	router.Run(":8080")
+	// TODO: does not work
+	router.Static("/img", os.Getenv("PROJECTDIR"))
 }

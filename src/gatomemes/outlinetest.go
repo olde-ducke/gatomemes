@@ -23,6 +23,7 @@ func DrawTestOutline() {
 
 	cntx := freetype.NewContext()
 
+	r := 'I'
 	cntx.SetFont(f)
 	cntx.SetDPI(72.0) // default is 72.0, btw
 	//cntx.SetSrc(image.White)
@@ -35,138 +36,131 @@ func DrawTestOutline() {
 	rast.SetBounds(512, 512)
 
 	var glyph_buffer truetype.GlyphBuf
-	err = glyph_buffer.Load(f, float2fixed(size), f.Index('Щ'), font.HintingFull)
+	err = glyph_buffer.Load(f, float2fixed(size), f.Index(r), font.HintingFull)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	prev := fixed.Point26_6{X: 0, Y: 0}
+	multiplier := float2fixed(2)
+	offset := fixed.Point26_6{X: multiplier, Y: multiplier}
+	/*maxX := glyph_buffer.Points[0].X
+	maxY := glyph_buffer.Points[0].Y
+	for _, point := range glyph_buffer.Points {
+		if point.X > maxX {
+			maxX = point.X
+		}
+		if point.Y > maxY {
+			maxY = point.Y
+		}
+	}
+	centerPoint := fixed.Point26_6{X: maxX << 6 / 2, Y: maxY << 6 / 2}*/
+
+	for i := range glyph_buffer.Points {
+		log.Println("before:", glyph_buffer.Points[i].X, glyph_buffer.Points[i].Y)
+		dx := glyph_buffer.Points[i].X - prev.X
+		dy := glyph_buffer.Points[i].Y - prev.Y
+		if dx > 0 {
+			offset.X = multiplier * 1
+		}
+		if dx < 0 {
+			offset.X = multiplier * 1
+		}
+		if dy > 0 {
+			offset.Y = multiplier * -1
+		}
+		if dy < 0 {
+			offset.Y = multiplier * -1
+		}
+		glyph_buffer.Points[i].X += offset.X
+		glyph_buffer.Points[i].Y += offset.Y
+		prev.X = glyph_buffer.Points[i].X - offset.X
+		prev.Y = glyph_buffer.Points[i].Y - offset.Y
+		log.Println("after :", glyph_buffer.Points[i].X, glyph_buffer.Points[i].Y)
+	}
+
 	painter.SetColor(image.Black)
-	multiplier := fixed.Point26_6{X: float2fixed(1.1), Y: float2fixed(1.1)}
-	drawCountour(rast, glyph_buffer.Points, fixed.I(256)-2*multiplier.X, fixed.I(256)+2*multiplier.Y, multiplier)
+	drawContour(rast, glyph_buffer.Points, fixed.I(256), fixed.I(256))
+	rast.Clear()
+	e0 := 0
+	for _, e1 := range glyph_buffer.Ends {
+		drawContour(rast, glyph_buffer.Points[e0:e1], fixed.I(256), fixed.I(256))
+		e0 = e1
+	}
 	rast.Rasterize(painter)
 	rast.Clear()
+
+	err = glyph_buffer.Load(f, float2fixed(size), f.Index(r), font.HintingFull)
 	painter.SetColor(image.White)
-	drawNormalCountour(rast, glyph_buffer.Points, fixed.I(256), fixed.I(256))
-	rast.Rasterize(painter)
+	drawContour(rast, glyph_buffer.Points, fixed.I(256), fixed.I(256))
 	rast.Clear()
+	e0 = 0
+	for _, e1 := range glyph_buffer.Ends {
+		drawContour(rast, glyph_buffer.Points[e0:e1], fixed.I(256), fixed.I(256))
+		e0 = e1
+	}
+	rast.Rasterize(painter)
 
 	savePngOnDisk(test, "img/test.png")
 }
 
-func drawCountour(rast *raster.Rasterizer, points []truetype.Point, dx, dy fixed.Int26_6, multiplier fixed.Point26_6) {
-	startpoint := fixed.Point26_6{
-		X: dx + points[0].X.Mul(multiplier.X),
-		Y: dy - points[0].Y.Mul(multiplier.Y),
+func drawContour(r *raster.Rasterizer, ps []truetype.Point, dx, dy fixed.Int26_6) {
+	if len(ps) == 0 {
+		return
+	}
+	start := fixed.Point26_6{
+		X: dx + ps[0].X,
+		Y: dy - ps[0].Y,
 	}
 	others := []truetype.Point(nil)
-	if points[0].Flags&0x01 != 0 {
-		others = points[1:]
+	if ps[0].Flags&0x01 != 0 {
+		others = ps[1:]
 	} else {
-		lastpoint := fixed.Point26_6{
-			X: dx + points[len(points)-1].X.Mul(multiplier.X),
-			Y: dy - points[len(points)-1].Y.Mul(multiplier.Y),
+		last := fixed.Point26_6{
+			X: dx + ps[len(ps)-1].X,
+			Y: dy - ps[len(ps)-1].Y,
 		}
-		if points[len(points)-1].Flags&0x01 != 0 {
-			startpoint = lastpoint
-			others = points[:len(points)-1]
+		if ps[len(ps)-1].Flags&0x01 != 0 {
+			start = last
+			others = ps[:len(ps)-1]
 		} else {
-			startpoint = fixed.Point26_6{
-				X: (startpoint.X + lastpoint.X) / 2,
-				Y: (startpoint.Y + lastpoint.Y) / 2,
+			start = fixed.Point26_6{
+				X: (start.X + last.X) / 2,
+				Y: (start.Y + last.Y) / 2,
 			}
-			others = points
+			others = ps
 		}
 	}
-	rast.Start(startpoint)
-	startposition, on0 := startpoint, true
+	r.Start(start)
+	q0, on0 := start, true
 	for _, p := range others {
-		position := fixed.Point26_6{
-			X: dx + p.X.Mul(multiplier.X),
-			Y: dy - p.Y.Mul(multiplier.Y),
-		}
-		oncontour := p.Flags&0x01 != 0
-		if oncontour {
-			if on0 {
-				rast.Add1(position)
-			} else {
-				rast.Add2(startposition, position)
-			}
-		} else {
-			if on0 {
-				// No-op.
-			} else {
-				mid := fixed.Point26_6{
-					X: (startposition.X + position.X) / 2,
-					Y: (startposition.Y + position.Y) / 2,
-				}
-				rast.Add2(startposition, mid)
-			}
-		}
-		startposition, on0 = position, oncontour
-	}
-	// Close the curve.
-	if on0 {
-		rast.Add1(startpoint)
-	} else {
-		rast.Add2(startposition, startpoint)
-	}
-}
-
-func drawNormalCountour(rast *raster.Rasterizer, points []truetype.Point, dx, dy fixed.Int26_6) {
-	startpoint := fixed.Point26_6{
-		X: dx + points[0].X,
-		Y: dy - points[0].Y,
-	}
-	others := []truetype.Point(nil)
-	if points[0].Flags&0x01 != 0 {
-		others = points[1:]
-	} else {
-		lastpoint := fixed.Point26_6{
-			X: dx + points[len(points)-1].X,
-			Y: dy - points[len(points)-1].Y,
-		}
-		if points[len(points)-1].Flags&0x01 != 0 {
-			startpoint = lastpoint
-			others = points[:len(points)-1]
-		} else {
-			startpoint = fixed.Point26_6{
-				X: (startpoint.X + lastpoint.X) / 2,
-				Y: (startpoint.Y + lastpoint.Y) / 2,
-			}
-			others = points
-		}
-	}
-	rast.Start(startpoint)
-	startposition, on0 := startpoint, true
-	for _, p := range others {
-		position := fixed.Point26_6{
+		q := fixed.Point26_6{
 			X: dx + p.X,
 			Y: dy - p.Y,
 		}
-		oncontour := p.Flags&0x01 != 0
-		if oncontour {
+		on := p.Flags&0x01 != 0
+		if on {
 			if on0 {
-				rast.Add1(position)
+				r.Add1(q)
 			} else {
-				rast.Add2(startposition, position)
+				r.Add2(q0, q)
 			}
 		} else {
 			if on0 {
 				// No-op.
 			} else {
 				mid := fixed.Point26_6{
-					X: (startposition.X + position.X) / 2,
-					Y: (startposition.Y + position.Y) / 2,
+					X: (q0.X + q.X) / 2,
+					Y: (q0.Y + q.Y) / 2,
 				}
-				rast.Add2(startposition, mid)
+				r.Add2(q0, mid)
 			}
 		}
-		startposition, on0 = position, oncontour
+		q0, on0 = q, on
 	}
-	// Close the curve.
 	if on0 {
-		rast.Add1(startpoint)
+		r.Add1(start)
 	} else {
-		rast.Add2(startposition, startpoint)
+		r.Add2(q0, start)
 	}
 }
