@@ -77,6 +77,7 @@ func addNewUser(login string, password string, identity string) (string, string,
 		log.Println("registration was not succesfull", err)
 		return "", "", err
 	}
+	// FIXME: is this really necessary?
 	var sbuilder strings.Builder
 	for _, v := range encryptedPassword {
 		fmt.Fprintf(&sbuilder, "%c", v)
@@ -147,10 +148,6 @@ func retrieveUserInfo(sessionKey string) (result map[string]interface{}, err err
 func deleteSessionKey(sessionKey string) (err error) {
 	_, err = db.Exec("UPDATE user SET session_key = NULL WHERE session_key = ?", sessionKey)
 	return err
-}
-
-func fillDb() {
-	//select line1, line2 from gatomemes where id in (select text_id from image_data where file_name IS NULL);
 }
 
 func init() {
