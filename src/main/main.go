@@ -33,7 +33,7 @@ func rootHandler(context *gin.Context) {
 	sessionKey, err := context.Cookie("sessionkey")
 	if err != nil {
 		context.HTML(http.StatusOK, "index.html", gin.H{"loginerror": "hidden", "userinfo": "hidden"})
-		log.Println("sessionkey not found: ", err)
+		// log.Println("sessionkey not found: ", err)
 		return
 	}
 	//gatomemes.GetUserInfo(sessionKey)

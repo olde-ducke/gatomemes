@@ -2,62 +2,86 @@ package gatomemes
 
 import (
 	"bytes"
+	"errors"
 	"image"
 	"image/draw"
 	"image/jpeg"
 	"image/png"
 	"io"
-	"io/ioutil"
-	"log"
 	"os"
+	"path/filepath"
 )
 
 var imgbytes []byte
 
 func encodeImage(src image.Image) {
-	// convert to png//jpeg
 	buffer := new(bytes.Buffer)
-	err := png.Encode(buffer, src) //, &jpeg.Options{Quality: 98})
+	err := png.Encode(buffer, src)
 	checkError("encode png: ", err)
 	imgbytes = buffer.Bytes()
 }
 
-func savePngOnDisk(img image.Image, filename string) {
-	f, err := os.Create(filename)
-	checkError("os.Create: ", err)
-	defer f.Close()
-	err = png.Encode(f, img)
-	checkError("encode png: ", err)
+func decodeImage(fileType string, reader io.Reader) (draw.Image, error) {
+	switch fileType {
+	case "image/png":
+		img, err := png.Decode(reader)
+		if err != nil {
+			return nil, err
+		}
+		if img, ok := img.(draw.Image); ok {
+			return img, nil
+		}
+	case "image/jpeg":
+		img, err := jpeg.Decode(reader)
+		if err != nil {
+			return nil, err
+		}
+		if img, ok := img.(*image.YCbCr); ok {
+			return jpegToPng(img)
+		}
+	}
+	return nil, errors.New("unsupported format")
+
 }
 
-func openPngFromDisk(filename string) {
-	var err error
-	imgbytes, err = ioutil.ReadFile(filename)
-	checkError("openPngFromDisk: ", err)
+func openLocalImage(path string) (draw.Image, error) {
+	file, err := os.Open(path)
+	// checkFatalError(err)
+	if err != nil {
+		return nil, err
+	}
+
+	switch filepath.Ext(path) {
+	case ".png":
+		return decodeImage("image/png", file)
+	case ".jpg":
+		return decodeImage("image/jpeg", file)
+	}
+	return nil, errors.New("unsupported format")
 }
 
-// gets response fro GetNew(), converts it to png and returns result to
-// font drawing
-func convertResponse(responseBody io.ReadCloser) {
-	log.Println("conseguir un nuevo gatito ")
-	src := convertJpegToPng(responseBody)
-	fitTextOnImage(src.(draw.Image))
+func jpegToPng(src *image.YCbCr) (draw.Image, error) {
+	var out draw.Image
+	out = image.NewNRGBA(src.Bounds())
+
+	for y := 0; y < src.Bounds().Dy(); y++ {
+		for x := 0; x < src.Bounds().Dx(); x++ {
+			srcColor := src.At(x, y)
+			out.Set(x, y, srcColor)
+		}
+	}
+	return out, nil
 }
 
-func convertJpegToPng(data io.ReadCloser) (src image.Image) {
-	// decoding jpeg to image.Image
-	src, err := jpeg.Decode(data)
-	checkError("decode jpeg: ", err)
+func savePngOnDisk(img image.Image, path string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	if err = png.Encode(file, img); err != nil {
+		return err
+	}
+	return nil
 
-	// converting jpeg to png, because you can't draw in YCbCr space
-	// TODO: find a way to avoid this
-	buffer := new(bytes.Buffer)
-	err = png.Encode(buffer, src)
-	checkError("encode png :", err)
-
-	// decoding png back to image.Image again
-	src, err = png.Decode(buffer)
-	checkError("decode png :", err)
-
-	return src
 }

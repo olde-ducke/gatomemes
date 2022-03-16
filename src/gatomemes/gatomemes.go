@@ -24,9 +24,18 @@ func GetNew(chaos bool) {
 		text.dbAccessFunc = getRandomLines
 	}
 	resp, err := http.Get(os.Getenv("PROJECTURL"))
-	checkError("response: ", err)
+	// TODO: return errors to caller
+	if err != nil {
+		log.Println("response: ", err)
+		return
+	}
 	defer resp.Body.Close()
-	convertResponse(resp.Body)
+	dst, err := decodeImage(resp.Header.Get("content-type"), resp.Body)
+	if err != nil {
+		log.Println("image decoder: ", err)
+		return
+	}
+	fitTextOnImage(dst)
 }
 
 func HandleLogin(request *http.Request, identity string) (string, string, error) {
