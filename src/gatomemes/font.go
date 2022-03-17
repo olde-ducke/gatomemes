@@ -189,7 +189,7 @@ func (drawer *textDrawer) measureString() (width fixed.Int26_6, height fixed.Int
 // from truetype, which doesn't support text outlining
 // (not complete port as stated in doc) and doesn't
 // expose data needed for doing that manually
-func drawGlyph(str string, opt *options, dst draw.Image, vAlignment int) {
+func drawGlyphs(str string, opt *options, dst draw.Image, vAlignment int) {
 	if dst == nil {
 		log.Println("no image provided")
 		return

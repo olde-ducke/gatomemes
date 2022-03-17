@@ -37,6 +37,7 @@ func getRandomLines() (lines [2]string, err error) {
 	return lines, nil
 }
 
+// FIXME: fails if there is no such id in DB
 func getChaoticLines() (lines [2]string, err error) {
 	rows, err := db.Query("SELECT Q1.line1, Q2.line2 FROM gatomemes Q1, gatomemes Q2 WHERE Q1.id = ? and Q2.id = ?",
 		getRandomId(), getRandomId())
@@ -74,6 +75,7 @@ func addNewUser(login string, password string, identity string) (string, string,
 	if err != nil {
 		log.Println(err)
 	}
+
 	// force generating new identity in case user deleted cookie or id already in DB
 	if rows.Next() || identity == "" {
 		log.Println("identity already exists or cookie deleted")

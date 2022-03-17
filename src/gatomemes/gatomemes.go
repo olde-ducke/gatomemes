@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
-	"image"
 	"io"
 	"log"
 	"net/http"
@@ -35,72 +34,66 @@ func GetImage(key string) ([]byte, error) {
 	return data, nil
 }
 
-func GetNew(key string, chaos bool) ([]byte, error) {
-	// get image from web
-
-	resp, err := http.Get(os.Getenv("PROJECTURL"))
-	// TODO: return errors to caller
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	dst, err := decodeImage(resp.Header.Get("content-type"), resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var lines [2]string
-	if chaos {
-		lines, err = getChaoticLines()
-	} else {
-		lines, err = getRandomLines()
-	}
-	if err != nil {
-		return nil, err
-	}
-	drawGlyph(lines[0], &options{outlineWidth: 10.0}, dst, top)
-	drawGlyph(lines[1], &options{outlineWidth: 10.0}, dst, bottom)
-
-	img, err := encodeImage(dst)
-	if err != nil {
-		return nil, err
-	}
-
-	err = rdb.Set(context.Background(), key, img, time.Minute).Err()
-	return img, err
-}
-
 func isValidURL(link string) bool {
 	u, err := url.Parse(link)
 	return err == nil && u.Scheme != "" && u.Host != ""
 }
 
-func GetNewFromSRC(src string, text string) (image.Image, error) {
+func GetNew(key string, chaos bool) ([]byte, error) {
+	var lines [2]string
+	var err error
+	if chaos {
+		lines, err = getChaoticLines()
+	} else {
+		lines, err = getRandomLines()
+	}
+
+	// FIXME: input string is very hacky
+	img, err := getNewFromSRC(os.Getenv("PROJECTURL"), lines[0]+"\n\n"+lines[1])
+	err = rdb.Set(context.Background(), key, img, time.Minute).Err()
+	return img, err
+}
+
+func getNewFromSRC(src string, text string) ([]byte, error) {
 	if src == "" || text == "" {
 		return nil, errors.New("image source or text is empty")
 	}
 
-	var reader io.Reader
+	var data []byte
 	var dataType string
 	var err error
 
 	if isValidURL(src) {
-		resp, err := http.Get(src)
-		if err != nil {
+		data, err = rdb.Get(context.Background(), src).Bytes()
+		if err == redis.Nil {
+			resp, err := http.Get(src)
+			if err != nil {
+				return nil, err
+			}
+			defer resp.Body.Close()
+
+			data, err = io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+
+			err = rdb.Set(context.Background(), src, data, time.Minute).Err()
+			if err != nil {
+				return nil, err
+			}
+			dataType = resp.Header.Get("content-type")
+		} else if err != nil {
 			return nil, err
+		} else {
+			dataType = http.DetectContentType(data)
 		}
-		defer resp.Body.Close()
-		reader = resp.Body
-		dataType = resp.Header.Get("content-type")
-	} else if data, err := base64.StdEncoding.DecodeString(src); err == nil {
-		reader = bytes.NewReader(data)
+	} else if data, err = base64.StdEncoding.DecodeString(src); err == nil {
 		dataType = http.DetectContentType(data)
 	} else {
-		return nil, errors.New("bad input")
+		return nil, errors.New("source unrecognized")
 	}
 
-	dst, err := decodeImage(dataType, reader)
+	dst, err := decodeImage(dataType, bytes.NewReader(data))
 	if err != nil {
 		return nil, err
 	}
@@ -110,10 +103,13 @@ func GetNewFromSRC(src string, text string) (image.Image, error) {
 		if alignment > 2 {
 			break
 		}
-		drawGlyph(text, &options{outlineWidth: 10.0}, dst, alignment)
+		drawGlyphs(text, &options{outlineWidth: 10.0}, dst, alignment)
 	}
-	encodeImage(dst)
-	return dst, nil
+	img, err := encodeImage(dst)
+	if err != nil {
+		return nil, err
+	}
+	return img, nil
 }
 
 func HandleLogin(request *http.Request, identity string) (string, string, error) {
