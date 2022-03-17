@@ -253,7 +253,7 @@ func drawGlyphs(str string, opt *options, dst draw.Image, vAlignment int) {
 	for _, r := range drawer.str {
 		// add basic distortion
 		if opt.distort {
-			for i, _ := range drawer.glyphCache[r].Points {
+			for i := range drawer.glyphCache[r].Points {
 				drawer.glyphCache[r].Points[i].X += drawer.pointToFixed(noise())
 				drawer.glyphCache[r].Points[i].Y += drawer.pointToFixed(noise())
 			}
@@ -290,7 +290,7 @@ func drawGlyphs(str string, opt *options, dst draw.Image, vAlignment int) {
 	// second pass draw glyph itself
 	rast.Clear()
 	offset = startCoords
-	for i, _ = range paths {
+	for i = range paths {
 
 		// drawer.painter.SetColor(drawer.fontColor)
 		// drawer.rast.Clear()

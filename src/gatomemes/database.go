@@ -22,7 +22,7 @@ func getUUIDString() string {
 }
 
 func getRandomLines() (lines [2]string, err error) {
-	rows, err := db.Query("SELECT line1, line2 FROM gatomemes WHERE id = ?", getRandomId())
+	rows, err := db.Query("SELECT line1, line2 FROM gatomemes WHERE id = ?", getRandomID())
 	if err != nil {
 		return lines, err
 	}
@@ -40,7 +40,7 @@ func getRandomLines() (lines [2]string, err error) {
 // FIXME: fails if there is no such id in DB
 func getChaoticLines() (lines [2]string, err error) {
 	rows, err := db.Query("SELECT Q1.line1, Q2.line2 FROM gatomemes Q1, gatomemes Q2 WHERE Q1.id = ? and Q2.id = ?",
-		getRandomId(), getRandomId())
+		getRandomID(), getRandomID())
 	if err != nil {
 		return lines, err
 	}
@@ -54,19 +54,19 @@ func getChaoticLines() (lines [2]string, err error) {
 	return lines, nil
 }
 
-func getRandomId() int {
+func getRandomID() int {
 	rand.Seed(time.Now().UnixNano())
-	return rand.Intn(getMaxId()) + 1
+	return rand.Intn(getMaxID()) + 1
 }
 
-func getMaxId() (id int) {
+func getMaxID() (id int) {
 	rows, err := db.Query("SELECT MAX(id) FROM gatomemes")
-	checkError("getMaxId: ", err)
+	checkError("getMaxID: ", err)
 	defer rows.Close()
 
 	rows.Next()
 	err = rows.Scan(&id)
-	checkError("getMaxId: ", err)
+	checkError("getMaxID: ", err)
 	return id
 }
 
@@ -101,10 +101,9 @@ func addNewUser(login string, password string, identity string) (string, string,
 	if err != nil {
 		log.Println("registration was not succesfull", err)
 		return "", "", nameErr
-	} else {
-		log.Println("succesfull registration")
-		return sessionKey, identity, nil
 	}
+	log.Println("succesfull registration")
+	return sessionKey, identity, nil
 }
 
 func updateSession(login string, gotPassword string, identity string) (sessionKey string, identityDB string, accessErr error) {

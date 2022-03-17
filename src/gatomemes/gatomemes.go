@@ -50,13 +50,50 @@ func GetNew(key string, chaos bool) ([]byte, error) {
 
 	// FIXME: input string is very hacky
 	img, err := getNewFromSRC(os.Getenv("PROJECTURL"), lines[0]+"\n\n"+lines[1])
+	if err != nil {
+		return nil, err
+	}
+
 	err = rdb.Set(context.Background(), key, img, time.Minute).Err()
 	return img, err
 }
 
+func handleURL(link string) ([]byte, string, error) {
+	var dataType string
+	data, err := rdb.Get(context.Background(), link).Bytes()
+	if err == redis.Nil {
+		resp, err := http.Get(link)
+		if err != nil {
+			return nil, "", err
+		}
+		defer resp.Body.Close()
+
+		data, err = io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, "", err
+		}
+
+		err = rdb.Set(context.Background(), link, data, time.Minute).Err()
+		if err != nil {
+			return nil, "", err
+		}
+
+		dataType = resp.Header.Get("content-type")
+	} else if err != nil {
+		return nil, "", err
+	} else {
+		dataType = http.DetectContentType(data)
+	}
+	return data, dataType, nil
+}
+
 func getNewFromSRC(src string, text string) ([]byte, error) {
-	if src == "" || text == "" {
-		return nil, errors.New("image source or text is empty")
+	if src == "" {
+		return nil, errors.New("image source is empty")
+	}
+
+	if text == "" {
+		return nil, errors.New("text is empty")
 	}
 
 	var data []byte
@@ -64,29 +101,7 @@ func getNewFromSRC(src string, text string) ([]byte, error) {
 	var err error
 
 	if isValidURL(src) {
-		data, err = rdb.Get(context.Background(), src).Bytes()
-		if err == redis.Nil {
-			resp, err := http.Get(src)
-			if err != nil {
-				return nil, err
-			}
-			defer resp.Body.Close()
-
-			data, err = io.ReadAll(resp.Body)
-			if err != nil {
-				return nil, err
-			}
-
-			err = rdb.Set(context.Background(), src, data, time.Minute).Err()
-			if err != nil {
-				return nil, err
-			}
-			dataType = resp.Header.Get("content-type")
-		} else if err != nil {
-			return nil, err
-		} else {
-			dataType = http.DetectContentType(data)
-		}
+		data, dataType, err = handleURL(src)
 	} else if data, err = base64.StdEncoding.DecodeString(src); err == nil {
 		dataType = http.DetectContentType(data)
 	} else {
@@ -99,12 +114,13 @@ func getNewFromSRC(src string, text string) ([]byte, error) {
 	}
 
 	lines := strings.Split(text, "\n")
-	for alignment, text := range lines {
-		if alignment > 2 {
+	for vAlignment, text := range lines {
+		if vAlignment > 2 {
 			break
 		}
-		drawGlyphs(text, &options{outlineWidth: 10.0}, dst, alignment)
+		drawGlyphs(text, &options{outlineWidth: 10.0}, dst, vAlignment)
 	}
+
 	img, err := encodeImage(dst)
 	if err != nil {
 		return nil, err
