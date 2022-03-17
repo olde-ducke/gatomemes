@@ -74,7 +74,7 @@ func chaosHandler(context *gin.Context) {
 }
 
 func testHandler(context *gin.Context) {
-	gatomemes.GetNewFromSRC(os.Getenv("PROJECTURL"), "\n\nYOU DIED\n")
+	gatomemes.GetNewFromSRC(os.Getenv("PROJECTURL"), "test\ntest\ntest\nnot test")
 	identity := getIdentity(context)
 	delete(cache, identity)
 	context.Redirect(http.StatusFound, "/")

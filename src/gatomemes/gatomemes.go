@@ -96,9 +96,9 @@ func GetNewFromSRC(src string, text string) (image.Image, error) {
 		}
 		drawGlyph(text, &options{
 			fontIndex:    5,
-			fontColor:    "af0000ff",
+			fontColor:    "random",
 			outlineWidth: 10,
-			outlineColor: "ff",
+			outlineColor: "000",
 			distort:      true,
 		}, dst, alignment)
 	}

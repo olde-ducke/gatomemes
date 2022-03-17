@@ -375,13 +375,9 @@ func createPath(ps []truetype.Point, dx, dy fixed.Int26_6) (path raster.Path) {
 	return path
 }
 
-func randomRGBA() color.RGBA {
-	return color.RGBA{
-		R: randomUint8(),
-		G: randomUint8(),
-		B: randomUint8(),
-		A: randomUint8(),
-	}
+func randomUint8() uint8 {
+	rand.Seed(time.Now().UnixNano())
+	return uint8(rand.Intn(256))
 }
 
 func randomRGB() color.RGBA {
@@ -394,22 +390,22 @@ func randomRGB() color.RGBA {
 }
 
 func extractColor(input string) color.RGBA {
-	n, err := strconv.ParseInt(input, 16, 64)
+	if input == "random" {
+		return randomRGB()
+	}
+
+	n, err := strconv.ParseInt(input, 16, 32)
 	if err != nil {
 		log.Println(err)
 		return color.RGBA{0, 0, 0, 255}
 	}
-	return color.RGBA{
-		R: uint8(n >> 24 & 0xff),
-		G: uint8(n >> 16 & 0xff),
-		B: uint8(n >> 8 & 0xff),
-		A: uint8(n & 0xff),
-	}
-}
 
-func randomUint8() uint8 {
-	rand.Seed(time.Now().UnixNano())
-	return uint8(rand.Intn(256))
+	return color.RGBA{
+		R: uint8(n >> 16 & 0xff),
+		G: uint8(n >> 8 & 0xff),
+		B: uint8(n & 0xff),
+		A: 255,
+	}
 }
 
 func noise() float64 {
