@@ -1,9 +1,16 @@
 package gatomemes
 
 import (
+	"bytes"
+	"encoding/base64"
+	"errors"
+	"image"
+	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 )
 
 func checkError(text string, err error) {
@@ -43,13 +50,60 @@ func GetNew(chaos bool) {
 		log.Println("request to db failed: ", err)
 		return
 	}
-	for i, text := range lines {
-		if i > 2 {
+	drawGlyph(lines[0], &options{outlineWidth: 10.0}, dst, top)
+	drawGlyph(lines[1], &options{outlineWidth: 10.0}, dst, bottom)
+	encodeImage(dst)
+}
+
+func isValidURL(link string) bool {
+	u, err := url.Parse(link)
+	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
+func GetNewFromSRC(src string, text string) (image.Image, error) {
+	if src == "" || text == "" {
+		return nil, errors.New("image source or text is empty")
+	}
+
+	var reader io.Reader
+	var dataType string
+	var err error
+
+	if isValidURL(src) {
+		resp, err := http.Get(src)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+		reader = resp.Body
+		dataType = resp.Header.Get("content-type")
+	} else if data, err := base64.StdEncoding.DecodeString(src); err == nil {
+		reader = bytes.NewReader(data)
+		dataType = http.DetectContentType(data)
+	} else {
+		return nil, errors.New("bad input")
+	}
+
+	dst, err := decodeImage(dataType, reader)
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(text, "\n")
+	for alignment, text := range lines {
+		if alignment > 2 {
 			break
 		}
-		drawGlyph(text, &options{outlineWidth: 5.0, distort: true}, dst, i)
+		drawGlyph(text, &options{
+			fontIndex:    5,
+			fontColor:    "af0000ff",
+			outlineWidth: 10,
+			outlineColor: "ff",
+			distort:      true,
+		}, dst, alignment)
 	}
 	encodeImage(dst)
+	return dst, nil
 }
 
 func HandleLogin(request *http.Request, identity string) (string, string, error) {

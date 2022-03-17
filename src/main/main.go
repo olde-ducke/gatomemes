@@ -73,6 +73,13 @@ func chaosHandler(context *gin.Context) {
 	context.Redirect(http.StatusFound, "/")
 }
 
+func testHandler(context *gin.Context) {
+	gatomemes.GetNewFromSRC(os.Getenv("PROJECTURL"), "\n\nYOU DIED\n")
+	identity := getIdentity(context)
+	delete(cache, identity)
+	context.Redirect(http.StatusFound, "/")
+}
+
 func loginFormHandler(context *gin.Context) {
 	sessionKey, identity, err := gatomemes.HandleLogin(context.Request, getIdentity(context))
 	if err != nil {
@@ -116,6 +123,7 @@ func main() {
 	router.GET("/gato.png", imageHandler)
 	router.GET("/new", newHandler)
 	router.GET("/chaos", chaosHandler)
+	router.GET("/test", testHandler)
 	router.POST("/login", loginFormHandler)
 	router.GET("/logout", logoutHandler)
 	router.Run(":8080")

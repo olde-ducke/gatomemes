@@ -24,8 +24,8 @@ var fonts []*truetype.Font
 
 const (
 	top = iota
-	bottom
 	middle
+	bottom
 )
 
 type textDrawer struct {
@@ -51,11 +51,11 @@ type textDrawer struct {
 type options struct {
 	fontIndex    int
 	fontSize     float64
-	fontColor    color.Color
+	fontColor    string
 	dpi          float64
 	hinting      font.Hinting
 	outlineWidth float64
-	outlineColor color.Color
+	outlineColor string
 	distort      bool
 }
 
@@ -86,15 +86,14 @@ func newDrawer(text string, opt *options) (*textDrawer, error) {
 		return nil, errors.New("empty string, nothing to draw")
 	}
 
+	var fontColor, outlineColor color.Color
 	if opt == nil {
 		opt = &options{
 			fontIndex:    0,
 			fontSize:     64.0,
-			fontColor:    color.White,
 			dpi:          72.0,
 			hinting:      font.HintingNone,
 			outlineWidth: 0.0,
-			outlineColor: color.Black,
 		}
 	} else {
 		// clamp options that could break everything
@@ -111,22 +110,26 @@ func newDrawer(text string, opt *options) (*textDrawer, error) {
 			opt.outlineWidth = 0.0
 		}
 
-		if opt.fontColor == nil {
-			opt.fontColor = color.White
+		if opt.fontColor == "" {
+			fontColor = color.White
+		} else {
+			fontColor = extractColor(opt.fontColor)
 		}
 
-		if opt.outlineColor == nil {
-			opt.outlineColor = color.Black
+		if opt.outlineColor == "" {
+			outlineColor = color.Black
+		} else {
+			outlineColor = extractColor(opt.outlineColor)
 		}
 	}
 
 	drawer := &textDrawer{
 		str:          text,
 		font:         fonts[opt.fontIndex%len(fonts)],
-		fontColor:    opt.fontColor,
+		fontColor:    fontColor,
 		dpi:          opt.dpi,
 		hinting:      opt.hinting,
-		outlineColor: opt.outlineColor,
+		outlineColor: outlineColor,
 	}
 
 	drawer.outlineWidth = drawer.pointToFixed(opt.outlineWidth)
@@ -195,6 +198,11 @@ func (drawer *textDrawer) measureString() (width fixed.Int26_6, height fixed.Int
 // (not complete port as stated in doc) and doesn't
 // expose data needed for doing that manually
 func drawGlyph(str string, opt *options, dst draw.Image, vAlignment int) {
+	if dst == nil {
+		log.Println("no image provided")
+		return
+	}
+
 	dstWidth, dstHeight := dst.Bounds().Dx(), dst.Bounds().Dy()
 	opt.fontSize = float64(dstWidth / 16) // magic number
 
@@ -241,19 +249,6 @@ func drawGlyph(str string, opt *options, dst draw.Image, vAlignment int) {
 	}
 
 	coords := drawer.getGlyphPositions()
-	// log.Println(drawer.measureString())
-	// test := image.NewRGBA(dst.Bounds())
-	// cntx := freetype.NewContext()
-	// cntx.SetDPI(opt.dpi)
-	// cntx.SetFont(fonts[opt.fontIndex%len(fonts)])
-	// cntx.SetClip(test.Bounds())
-	// cntx.SetFontSize(opt.fontSize)
-	// cntx.SetHinting(opt.hinting)
-	// cntx.SetSrc(image.White)
-	// cntx.SetDst(test)
-	// cntx.DrawString(str, startCoords)
-	// savePngOnDisk(test, "img/test2.png")
-
 	offset := startCoords
 	i := 0
 	//  drawer.rast.Clear()
@@ -285,7 +280,6 @@ func drawGlyph(str string, opt *options, dst draw.Image, vAlignment int) {
 		}
 		// draw outline with strokes if needed
 		if drawer.outlineWidth > 0.0 {
-			// drawer.painter.SetColor(randomRGB())
 			rast.AddStroke(path, drawer.outlineWidth, nil, nil)
 		}
 		offset.X = startCoords.X + coords[i]
