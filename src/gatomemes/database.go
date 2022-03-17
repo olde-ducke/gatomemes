@@ -21,27 +21,36 @@ func getUUIDString() string {
 	return uuid.New().String()
 }
 
-func getRandomLines() (lines [2]string) {
+func getRandomLines() (lines [2]string, err error) {
 	rows, err := db.Query("SELECT line1, line2 FROM gatomemes WHERE id = ?", getRandomId())
-	checkError("getRandimLines: ", err)
+	if err != nil {
+		return lines, err
+	}
 	defer rows.Close()
 
 	rows.Next()
 	err = rows.Scan(&lines[0], &lines[1])
-	checkError("getRandimLines: ", err)
-	return lines
+	if err != nil {
+		return lines, err
+	}
+
+	return lines, nil
 }
 
-func getChaoticLines() (lines [2]string) {
+func getChaoticLines() (lines [2]string, err error) {
 	rows, err := db.Query("SELECT Q1.line1, Q2.line2 FROM gatomemes Q1, gatomemes Q2 WHERE Q1.id = ? and Q2.id = ?",
 		getRandomId(), getRandomId())
-	checkError("getChaoticLines: ", err)
+	if err != nil {
+		return lines, err
+	}
 	defer rows.Close()
 
 	rows.Next()
 	err = rows.Scan(&lines[0], &lines[1])
-	checkError("getChaoticLines: ", err)
-	return lines
+	if err != nil {
+		return lines, err
+	}
+	return lines, nil
 }
 
 func getRandomId() int {

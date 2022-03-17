@@ -49,27 +49,6 @@ func rootHandler(context *gin.Context) {
 
 // fake /gato.jpeg response
 func imageHandler(context *gin.Context) {
-	//TODO: 304 status does not reset on redirects, so there is no second request for gatp.png
-	/*sha := sha1.Sum(gatomemes.GetImageBytes())
-	var sbuilder strings.Builder
-	sbuilder.Grow(20)
-	for _, v := range sha {
-		fmt.Fprintf(&sbuilder, "%x", v)
-	}
-	etagimg := sbuilder.String()
-	context.Header("Cache-Control", "public, max-age=86400")
-	context.Header("ETag", etagimg)
-	etag := context.GetHeader("If-None-Match")
-	//log.Println(etag)
-	if etag == etagimg {
-		log.Println("test1")
-		context.Status(http.StatusNotModified)
-	} else {
-		log.Println("test2")
-		context.Data(http.StatusOK, "image/png", gatomemes.GetImageBytes())
-	}
-	context.Header("ETag", "")
-	*/
 	identity := getIdentity(context)
 	if imgbytes, ok := cache[identity]; ok {
 		context.Data(http.StatusOK, "image/png", imgbytes)
@@ -130,7 +109,7 @@ func main() {
 	// server
 	router := gin.Default()
 
-	cache = make(map[string][]byte, 10)
+	cache = make(map[string][]byte, 1024)
 
 	router.LoadHTMLFiles("templates/index.html", "templates/test.html")
 	router.GET("/", rootHandler)

@@ -18,11 +18,7 @@ func GetImageBytes() []byte {
 
 func GetNew(chaos bool) {
 	// get image from web
-	if chaos {
-		text.dbAccessFunc = getChaoticLines
-	} else {
-		text.dbAccessFunc = getRandomLines
-	}
+
 	resp, err := http.Get(os.Getenv("PROJECTURL"))
 	// TODO: return errors to caller
 	if err != nil {
@@ -30,12 +26,30 @@ func GetNew(chaos bool) {
 		return
 	}
 	defer resp.Body.Close()
+
 	dst, err := decodeImage(resp.Header.Get("content-type"), resp.Body)
 	if err != nil {
 		log.Println("image decoder: ", err)
 		return
 	}
-	fitTextOnImage(dst)
+
+	var lines [2]string
+	if chaos {
+		lines, err = getChaoticLines()
+	} else {
+		lines, err = getRandomLines()
+	}
+	if err != nil {
+		log.Println("request to db failed: ", err)
+		return
+	}
+	for i, text := range lines {
+		if i > 2 {
+			break
+		}
+		drawGlyph(text, &options{outlineWidth: 5.0, distort: true}, dst, i)
+	}
+	encodeImage(dst)
 }
 
 func HandleLogin(request *http.Request, identity string) (string, string, error) {
