@@ -37,15 +37,7 @@ type textDrawer struct {
 	hinting      font.Hinting
 	outlineWidth fixed.Int26_6
 	outlineColor color.Color
-
-	//dst  imageDraw
-	// mask *image.RGBA
-
-	// painter *raster.RGBAPainter
-	// rast    *raster.Rasterizer
-
-	// glyphXPositions []fixed.Int26_6
-	glyphCache map[rune]*truetype.GlyphBuf
+	glyphCache   map[rune]*truetype.GlyphBuf
 }
 
 type options struct {

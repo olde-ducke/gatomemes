@@ -94,13 +94,7 @@ func GetNewFromSRC(src string, text string) (image.Image, error) {
 		if alignment > 2 {
 			break
 		}
-		drawGlyph(text, &options{
-			fontIndex:    5,
-			fontColor:    "random",
-			outlineWidth: 10,
-			outlineColor: "000",
-			distort:      true,
-		}, dst, alignment)
+		drawGlyph(text, &options{outlineWidth: 10.0}, dst, alignment)
 	}
 	encodeImage(dst)
 	return dst, nil
