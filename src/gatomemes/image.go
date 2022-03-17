@@ -14,11 +14,13 @@ import (
 
 var imgbytes []byte
 
-func encodeImage(src image.Image) {
+func encodeImage(src image.Image) ([]byte, error) {
 	buffer := new(bytes.Buffer)
 	err := png.Encode(buffer, src)
-	checkError("encode png: ", err)
-	imgbytes = buffer.Bytes()
+	if err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
 }
 
 func decodeImage(fileType string, reader io.Reader) (draw.Image, error) {

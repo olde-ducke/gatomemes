@@ -1,19 +1,14 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
 
 	"github.com/olde-ducke/gatomemes/src/gatomemes"
 )
-
-var rdb *redis.Client
 
 // rendering template
 func rootHandler(c *gin.Context) {
@@ -53,45 +48,30 @@ func rootHandler(c *gin.Context) {
 // fake /gato.jpeg response
 func imageHandler(c *gin.Context) {
 	identity := getIdentity(c)
-	imgbytes, err := rdb.Get(context.Background(), identity).Bytes()
-	if err == redis.Nil {
-		// gatomemes.GetNew(false)
-		data := gatomemes.GetImageBytes()
-		rdb.Set(context.Background(), identity, data, time.Minute)
-		c.Data(http.StatusOK, "image/png", data)
-	} else if err != nil {
-		panic(err)
-	} else {
-		c.Data(http.StatusOK, "image/png", imgbytes)
+	imgbytes, err := gatomemes.GetImage(identity)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
 	}
+	c.Data(http.StatusOK, "image/png", imgbytes)
 }
 
 func newHandler(c *gin.Context) {
-	gatomemes.GetNew(false)
 	identity := getIdentity(c)
-	err := rdb.Del(context.Background(), identity).Err()
+	_, err := gatomemes.GetNew(identity, false)
 	if err != nil {
-		panic(err)
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
 	}
 	c.Redirect(http.StatusFound, "/")
 }
 
 func chaosHandler(c *gin.Context) {
-	gatomemes.GetNew(true)
 	identity := getIdentity(c)
-	err := rdb.Del(context.Background(), identity).Err()
+	_, err := gatomemes.GetNew(identity, true)
 	if err != nil {
-		panic(err)
-	}
-	c.Redirect(http.StatusFound, "/")
-}
-
-func testHandler(c *gin.Context) {
-	gatomemes.GetNewFromSRC(os.Getenv("TEST"), os.Getenv("TEST2"))
-	identity := getIdentity(c)
-	err := rdb.Del(context.Background(), identity).Err()
-	if err != nil {
-		panic(err)
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
 	}
 	c.Redirect(http.StatusFound, "/")
 }
@@ -123,17 +103,10 @@ func getIdentity(c *gin.Context) string {
 	c.SetSameSite(http.SameSiteStrictMode)
 	identity, err := c.Cookie("identity")
 	if err != nil {
-		c.SetCookie("identity", gatomemes.GenerateUUID(), 86400, "/", "", false, true)
+		identity = gatomemes.GenerateUUID()
+		c.SetCookie("identity", identity, 86400, "/", "", false, true)
 	}
 	return identity
-}
-
-func init() {
-	rdb = redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-	})
 }
 
 func main() {
@@ -145,7 +118,6 @@ func main() {
 	router.GET("/gato.png", imageHandler)
 	router.GET("/new", newHandler)
 	router.GET("/chaos", chaosHandler)
-	router.GET("/test", testHandler)
 	router.POST("/login", loginFormHandler)
 	router.GET("/logout", logoutHandler)
 	router.Run(":8080")

@@ -2,6 +2,7 @@ package gatomemes
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"errors"
 	"image"
@@ -11,7 +12,12 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
+
+	"github.com/go-redis/redis/v8"
 )
+
+var rdb *redis.Client
 
 func checkError(text string, err error) {
 	if err != nil {
@@ -19,25 +25,29 @@ func checkError(text string, err error) {
 	}
 }
 
-func GetImageBytes() []byte {
-	return imgbytes
+func GetImage(key string) ([]byte, error) {
+	data, err := rdb.Get(context.Background(), key).Bytes()
+	if err == redis.Nil {
+		return GetNew(key, false)
+	} else if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
-func GetNew(chaos bool) {
+func GetNew(key string, chaos bool) ([]byte, error) {
 	// get image from web
 
 	resp, err := http.Get(os.Getenv("PROJECTURL"))
 	// TODO: return errors to caller
 	if err != nil {
-		log.Println("response: ", err)
-		return
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	dst, err := decodeImage(resp.Header.Get("content-type"), resp.Body)
 	if err != nil {
-		log.Println("image decoder: ", err)
-		return
+		return nil, err
 	}
 
 	var lines [2]string
@@ -47,12 +57,18 @@ func GetNew(chaos bool) {
 		lines, err = getRandomLines()
 	}
 	if err != nil {
-		log.Println("request to db failed: ", err)
-		return
+		return nil, err
 	}
 	drawGlyph(lines[0], &options{outlineWidth: 10.0}, dst, top)
 	drawGlyph(lines[1], &options{outlineWidth: 10.0}, dst, bottom)
-	encodeImage(dst)
+
+	img, err := encodeImage(dst)
+	if err != nil {
+		return nil, err
+	}
+
+	err = rdb.Set(context.Background(), key, img, time.Minute).Err()
+	return img, err
 }
 
 func isValidURL(link string) bool {
@@ -138,5 +154,9 @@ func GenerateUUID() string {
 }
 
 func init() {
-	GetNew(false)
+	rdb = redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: os.Getenv("RDBPASS"),
+		DB:       0,
+	})
 }
