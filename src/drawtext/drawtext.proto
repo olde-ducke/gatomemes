@@ -13,4 +13,5 @@ message DrawRequest {
 
 message DrawReply {
 	string reply = 1;
+	bytes data = 2;
 }

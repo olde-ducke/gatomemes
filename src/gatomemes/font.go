@@ -406,15 +406,15 @@ func noise() float64 {
 }
 
 func init() {
-	filenames := strings.Fields(os.Getenv("PROJECTFONT"))
+	filenames := strings.Fields(os.Getenv("PROJECTFONTS"))
 	if len(filenames) == 0 {
 		log.Fatal("no fonts found")
 	}
 	for _, filename := range filenames {
 		fontBytes, err := ioutil.ReadFile(filename)
-		checkError("init: ", err)
+		fatalError("init: ", err)
 		f, err := freetype.ParseFont(fontBytes)
-		checkError("init: ", err)
+		fatalError("init: ", err)
 		fonts = append(fonts, f)
 	}
 }

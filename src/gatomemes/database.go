@@ -61,24 +61,29 @@ func getRandomID() int {
 
 func getMaxID() (id int) {
 	rows, err := db.Query("SELECT MAX(id) FROM gatomemes")
-	checkError("getMaxID: ", err)
+	fatalError("getMaxID: ", err)
 	defer rows.Close()
 
 	rows.Next()
 	err = rows.Scan(&id)
-	checkError("getMaxID: ", err)
+	fatalError("getMaxID: ", err)
 	return id
 }
 
 func addNewUser(login string, password string, identity string) (string, string, error) {
+	if identity == "" {
+		identity = getUUIDString()
+		log.Println("no identity")
+	}
+
 	rows, err := db.Query("SELECT identity FROM user WHERE identity = ?", identity)
 	if err != nil {
 		log.Println(err)
 	}
 
 	// force generating new identity in case user deleted cookie or id already in DB
-	if rows.Next() || identity == "" {
-		log.Println("identity already exists or cookie deleted")
+	if rows.Next() {
+		log.Println("identity already exists")
 		identity = getUUIDString()
 	}
 	rows.Close()
@@ -125,11 +130,10 @@ func updateSession(login string, gotPassword string, identity string) (sessionKe
 	if bcrypterr := bcrypt.CompareHashAndPassword([]byte(wantPassword), []byte(gotPassword)); bcrypterr == nil {
 		log.Println("successfull login")
 		_, err = db.Exec("UPDATE user SET session_key = ? WHERE identity = ?", sessionKey, identityDB)
-		// FIXME: checkerror fatals on errors
-		checkError("updateSession", err)
-		if err == nil {
-			return sessionKey, identityDB, nil
+		if err != nil {
+			return "", "", err
 		}
+		return sessionKey, identityDB, nil
 	} else {
 		log.Println(bcrypterr)
 	}
@@ -173,9 +177,9 @@ func init() {
 	// Get a database handle.
 	var err error
 	db, err = sql.Open("mysql", cfg.FormatDSN())
-	checkError("database handle: ", err)
+	fatalError("database handle: ", err)
 
 	err = db.Ping()
-	checkError("pingErr: ", err)
-	log.Println("Connected to DB!")
+	fatalError("pingErr: ", err)
+	log.Println("connected to mysql DB")
 }

@@ -18,7 +18,7 @@ import (
 
 var rdb *redis.Client
 
-func checkError(text string, err error) {
+func fatalError(text string, err error) {
 	if err != nil {
 		log.Fatal(text, err)
 	}
@@ -50,7 +50,7 @@ func GetNew(key string, chaos bool) ([]byte, error) {
 	// FIXME: no error checking
 
 	// FIXME: input string is very hacky
-	img, err := getNewFromSRC(os.Getenv("PROJECTURL"), lines[0]+"\n\n"+lines[1])
+	img, err := GetNewFromSrc(os.Getenv("PROJECTURL"), lines[0]+"@@"+lines[1])
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func handleURL(link string) ([]byte, string, error) {
 	return data, dataType, nil
 }
 
-func getNewFromSRC(src string, text string) ([]byte, error) {
+func GetNewFromSrc(src string, text string) ([]byte, error) {
 	if src == "" {
 		return nil, errors.New("image source is empty")
 	}
@@ -114,7 +114,7 @@ func getNewFromSRC(src string, text string) ([]byte, error) {
 		return nil, err
 	}
 
-	lines := strings.Split(text, "\n")
+	lines := strings.Split(text, "@")
 	for vAlignment, text := range lines {
 		if vAlignment > 2 {
 			break
@@ -131,13 +131,17 @@ func getNewFromSRC(src string, text string) ([]byte, error) {
 
 func HandleLogin(request *http.Request, identity string) (string, string, error) {
 	err := request.ParseForm()
-	checkError("HandleLogin: ", err)
+	if err != nil {
+		return "", "", err
+	}
+
 	var sessionKey string
 	if _, ok := request.PostForm["newuser"]; ok {
 		sessionKey, identity, err = addNewUser(request.PostForm["login"][0], request.PostForm["password"][0], identity)
 	} else if _, ok := request.PostForm["loginuser"]; ok {
 		sessionKey, identity, err = updateSession(request.PostForm["login"][0], request.PostForm["password"][0], identity)
 	}
+
 	if sessionKey != "" {
 		return sessionKey, identity, nil
 	}
