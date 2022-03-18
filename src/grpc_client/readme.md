@@ -27,4 +27,4 @@ running command:
 
 will produce image:
 
-![Example](/assets/out.png)
+![Example](./assets/out.png)
