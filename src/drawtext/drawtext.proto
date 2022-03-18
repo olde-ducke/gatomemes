@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+option go_package = "github.com/olde-ducke/gatomemes/src/drawtext";
+
+service DrawText {
+	rpc Draw (DrawRequest) returns (DrawReply) {}
+}
+
+message DrawRequest {
+	string src = 1;
+	string text = 2;
+}
+
+message DrawReply {
+	string reply = 1;
+}

@@ -47,6 +47,7 @@ func GetNew(key string, chaos bool) ([]byte, error) {
 	} else {
 		lines, err = getRandomLines()
 	}
+	// FIXME: no error checking
 
 	// FIXME: input string is very hacky
 	img, err := getNewFromSRC(os.Getenv("PROJECTURL"), lines[0]+"\n\n"+lines[1])

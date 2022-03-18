@@ -196,7 +196,7 @@ func drawGlyphs(str string, opt *options, dst draw.Image, vAlignment int) {
 	}
 
 	dstWidth, dstHeight := dst.Bounds().Dx(), dst.Bounds().Dy()
-	opt.fontSize = float64(dstWidth / 16) // magic number
+	opt.fontSize = float64(dstWidth / 24) // magic number
 
 	drawer, err := newDrawer(str, opt)
 	if err != nil {
