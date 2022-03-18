@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"strings"
@@ -73,24 +72,24 @@ func getMaxID() (id int) {
 func addNewUser(login string, password string, identity string) (string, string, error) {
 	if identity == "" {
 		identity = getUUIDString()
-		log.Println("no identity")
+		logger.Println("no identity")
 	}
 
 	rows, err := db.Query("SELECT identity FROM user WHERE identity = ?", identity)
 	if err != nil {
-		log.Println(err)
+		logger.Println(err)
 	}
 
 	// force generating new identity in case user deleted cookie or id already in DB
 	if rows.Next() {
-		log.Println("identity already exists")
+		logger.Println("identity already exists")
 		identity = getUUIDString()
 	}
 	rows.Close()
 
 	encryptedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	if err != nil {
-		log.Println("registration was not succesfull", err)
+		logger.Println("registration was not succesfull", err)
 		return "", "", err
 	}
 	// FIXME: is this really necessary?
@@ -104,10 +103,10 @@ func addNewUser(login string, password string, identity string) (string, string,
 	_, err = db.Exec("INSERT INTO user (identity, user_name, password, session_key) VALUES (?, ?, ?, ?)",
 		identity, login, sbuilder.String(), sessionKey)
 	if err != nil {
-		log.Println("registration was not succesfull", err)
+		logger.Println("registration was not succesfull", err)
 		return "", "", nameErr
 	}
-	log.Println("succesfull registration")
+	logger.Println("succesfull registration")
 	return sessionKey, identity, nil
 }
 
@@ -122,22 +121,22 @@ func updateSession(login string, gotPassword string, identity string) (sessionKe
 	}
 
 	if identity != identityDB {
-		log.Println("different identity in DB")
+		logger.Println("different identity in DB")
 	}
 
 	// generate new session key
 	sessionKey = getUUIDString()
 	if bcrypterr := bcrypt.CompareHashAndPassword([]byte(wantPassword), []byte(gotPassword)); bcrypterr == nil {
-		log.Println("successfull login")
+		logger.Println("successfull login")
 		_, err = db.Exec("UPDATE user SET session_key = ? WHERE identity = ?", sessionKey, identityDB)
 		if err != nil {
 			return "", "", err
 		}
 		return sessionKey, identityDB, nil
 	} else {
-		log.Println(bcrypterr)
+		logger.Println(bcrypterr)
 	}
-	log.Println("wrong password")
+	logger.Println("wrong password")
 	return "", "", accessErr
 }
 
@@ -148,7 +147,7 @@ func retrieveUserInfo(sessionKey string) (result map[string]interface{}, err err
 	var name, regTime string
 	err = row.Scan(&name, &regTime, &isDisabled, &isAdmin, &isRoot)
 	if err != nil {
-		log.Println("user with given key not found")
+		logger.Println("user with given key not found")
 		return result, err
 	}
 	result["username"] = name
@@ -181,5 +180,5 @@ func init() {
 
 	err = db.Ping()
 	fatalError("pingErr: ", err)
-	log.Println("connected to mysql DB")
+	logger.Println("succesfully connected to mysql")
 }

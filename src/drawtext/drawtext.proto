@@ -1,17 +1,30 @@
 syntax = "proto3";
 
+import "google/protobuf/empty.proto";
+
 option go_package = "github.com/olde-ducke/gatomemes/src/drawtext";
 
 service DrawText {
 	rpc Draw (DrawRequest) returns (DrawReply) {}
+	rpc GetFontNames(google.protobuf.Empty) returns (TextReply) {}
 }
 
 message DrawRequest {
 	string src = 1;
 	string text = 2;
+	int64 index = 3;
+	int64 fontScale = 4;
+	string fontColor = 5;
+	string outlineColor = 6;
+	int64 outlineScale = 7;
+	bool disableOutline = 8;
+	bool distort = 9;
 }
 
 message DrawReply {
-	string reply = 1;
-	bytes data = 2;
+	bytes data = 1;
+}
+
+message TextReply {
+	string filenames = 1;
 }

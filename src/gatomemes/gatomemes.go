@@ -17,6 +17,7 @@ import (
 )
 
 var rdb *redis.Client
+var logger = log.New(os.Stdout, "\x1b[31m[GAT] \x1b[0m", log.LstdFlags)
 
 func fatalError(text string, err error) {
 	if err != nil {
@@ -50,7 +51,7 @@ func GetNew(key string, chaos bool) ([]byte, error) {
 	// FIXME: no error checking
 
 	// FIXME: input string is very hacky
-	img, err := GetNewFromSrc(os.Getenv("PROJECTURL"), lines[0]+"@@"+lines[1])
+	img, err := GetNewFromSrc(os.Getenv("PROJECTURL"), lines[0]+"@@"+lines[1], nil)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +89,7 @@ func handleURL(link string) ([]byte, string, error) {
 	return data, dataType, nil
 }
 
-func GetNewFromSrc(src string, text string) ([]byte, error) {
+func GetNewFromSrc(src string, text string, opt *Options) ([]byte, error) {
 	if src == "" {
 		return nil, errors.New("image source is empty")
 	}
@@ -119,7 +120,7 @@ func GetNewFromSrc(src string, text string) ([]byte, error) {
 		if vAlignment > 2 {
 			break
 		}
-		drawGlyphs(text, &options{outlineWidth: 10.0}, dst, vAlignment)
+		drawGlyphs(text, opt, dst, vAlignment)
 	}
 
 	img, err := encodeImage(dst)
@@ -151,7 +152,7 @@ func HandleLogin(request *http.Request, identity string) (string, string, error)
 func GetUserInfo(sessionKey string) (result map[string]interface{}, err error) {
 	result, err = retrieveUserInfo(sessionKey)
 	if err != nil {
-		log.Println(err)
+		logger.Println(err)
 		return result, err
 	}
 	result["loginerror"] = "hidden"
@@ -162,7 +163,7 @@ func GetUserInfo(sessionKey string) (result map[string]interface{}, err error) {
 func LogOff(sessionKey string) {
 	err := deleteSessionKey(sessionKey)
 	if err != nil {
-		log.Println(err)
+		logger.Println(err)
 	}
 }
 

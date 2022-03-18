@@ -48,7 +48,6 @@ func decodeImage(fileType string, reader io.Reader) (draw.Image, error) {
 
 func openLocalImage(path string) (draw.Image, error) {
 	file, err := os.Open(path)
-	// checkFatalError(err)
 	if err != nil {
 		return nil, err
 	}

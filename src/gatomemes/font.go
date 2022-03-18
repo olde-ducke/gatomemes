@@ -1,7 +1,6 @@
 package gatomemes
 
 import (
-	"errors"
 	"image"
 	"image/color"
 	"image/draw"
@@ -40,15 +39,32 @@ type textDrawer struct {
 	glyphCache   map[rune]*truetype.GlyphBuf
 }
 
-type options struct {
-	fontIndex    int
+type Options struct {
+	FontIndex      int64
+	FontScale      int64
+	FontColor      string
+	OutlineColor   string
+	OutlineScale   int64
+	DisableOutline bool
+	Distort        bool
+
 	fontSize     float64
-	fontColor    string
 	dpi          float64
 	hinting      font.Hinting
 	outlineWidth float64
-	outlineColor string
-	distort      bool
+}
+
+var defaultOptions = &Options{
+	FontIndex:    0,
+	FontScale:    3,
+	FontColor:    "ffffff",
+	OutlineColor: "000000",
+	OutlineScale: 4,
+
+	fontSize:     64.0,
+	dpi:          72.0,
+	hinting:      font.HintingNone,
+	outlineWidth: 10.0,
 }
 
 func (drawer *textDrawer) pointToFixed(f float64) fixed.Int26_6 {
@@ -67,61 +83,57 @@ func (drawer *textDrawer) changeSize(size float64) {
 		// in case of an error report error and
 		// replace glyph with nothing
 		if err != nil {
-			log.Println(err)
+			logger.Println(err)
 		}
 		drawer.glyphCache[curr] = &buf
 	}
 }
 
-func newDrawer(text string, opt *options) (*textDrawer, error) {
-	if text == "" {
-		return nil, errors.New("empty string, nothing to draw")
-	}
-
-	var fontColor, outlineColor color.Color
+func filterOptions(opt *Options) *Options {
 	if opt == nil {
-		opt = &options{
-			fontIndex:    0,
-			fontSize:     64.0,
-			dpi:          72.0,
-			hinting:      font.HintingNone,
-			outlineWidth: 0.0,
-		}
+		return defaultOptions
 	} else {
-		// clamp options that could break everything
-		// TODO: clamp on other side to?
-		if opt.fontSize <= 0.0 {
-			opt.fontSize = 64.0
+		opt.FontIndex = opt.FontIndex % int64(len(fonts))
+
+		if opt.FontScale < 1 || opt.FontScale > 4 {
+			opt.FontScale = 3
 		}
 
-		if opt.dpi <= 0.0 {
+		if opt.FontColor == "" {
+			opt.FontColor = "ffffff"
+		}
+
+		if opt.OutlineColor == "" {
+			opt.OutlineColor = "000000"
+		}
+
+		if opt.OutlineScale < 1 || opt.OutlineScale > 4 {
+			opt.OutlineScale = 4
+		}
+
+		if opt.dpi <= 0.0 || opt.dpi >= 96.0 {
 			opt.dpi = 72.0
 		}
+	}
+	return opt
+}
 
-		if opt.outlineWidth < 0.0 {
-			opt.outlineWidth = 0.0
-		}
+func newDrawer(text string, opt *Options) (*textDrawer, error) {
+	if opt.fontSize <= 0.0 || opt.fontSize >= 120.0 {
+		opt.fontSize = 64.0
+	}
 
-		if opt.fontColor == "" {
-			fontColor = color.White
-		} else {
-			fontColor = extractColor(opt.fontColor)
-		}
-
-		if opt.outlineColor == "" {
-			outlineColor = color.Black
-		} else {
-			outlineColor = extractColor(opt.outlineColor)
-		}
+	if opt.outlineWidth <= 10.0 || opt.outlineWidth >= 50.0 {
+		opt.outlineWidth = 10.0
 	}
 
 	drawer := &textDrawer{
 		str:          text,
-		font:         fonts[opt.fontIndex%len(fonts)],
-		fontColor:    fontColor,
+		font:         fonts[opt.FontIndex],
+		fontColor:    extractColor(opt.FontColor),
 		dpi:          opt.dpi,
 		hinting:      opt.hinting,
-		outlineColor: outlineColor,
+		outlineColor: extractColor(opt.OutlineColor),
 	}
 
 	drawer.outlineWidth = drawer.pointToFixed(opt.outlineWidth)
@@ -130,15 +142,6 @@ func newDrawer(text string, opt *options) (*textDrawer, error) {
 
 	return drawer, nil
 }
-
-// func (drawer *textDrawer) setDst(dst draw.Image) {
-//  // TODO: for now draws on empty image,
-//  // needs color model converter
-//  drawer.dst = dst
-//  drawer.mask = image.NewRGBA(dst.Bounds)
-//  drawer.painter = raster.NewRGBAPainter(drawer.mask)
-//  drawer.rast = raster.NewRasterizer(mask.Bounds().Dx(), mask.Bounds().Dy())
-// }
 
 func (drawer *textDrawer) getGlyphPositions() (positions []fixed.Int26_6) {
 	var advance fixed.Int26_6
@@ -189,26 +192,30 @@ func (drawer *textDrawer) measureString() (width fixed.Int26_6, height fixed.Int
 // from truetype, which doesn't support text outlining
 // (not complete port as stated in doc) and doesn't
 // expose data needed for doing that manually
-func drawGlyphs(str string, opt *options, dst draw.Image, vAlignment int) {
-	if dst == nil {
-		log.Println("no image provided")
+func drawGlyphs(str string, opt *Options, dst draw.Image, vAlignment int) {
+	if str == "" {
+		// logger.Println("empty string, nothing to draw")
 		return
 	}
 
+	if dst == nil {
+		logger.Println("no image provided")
+		return
+	}
+
+	opt = filterOptions(opt)
+
 	dstWidth, dstHeight := dst.Bounds().Dx(), dst.Bounds().Dy()
-	opt.fontSize = float64(dstWidth / 24) // magic number
+	opt.fontSize = float64(dstWidth) / float64(8*opt.FontScale)         // magic number
+	opt.outlineWidth = float64(dstWidth) / float64(16*opt.OutlineScale) // same
 
 	drawer, err := newDrawer(str, opt)
 	if err != nil {
-		log.Println(err)
+		logger.Println(err)
 		return
 	}
-	// drawer.setDst(dst)
-	textXOffset := drawer.outlineWidth
-	if textXOffset < 640 {
-		textXOffset = 640 // 10 in fixed.Int26_6
-	}
 
+	textXOffset := drawer.outlineWidth
 	// FIXME: as broken as ever
 	var width, height fixed.Int26_6
 	for i, delta := 0, opt.fontSize; ; i++ {
@@ -221,7 +228,7 @@ func drawGlyphs(str string, opt *options, dst draw.Image, vAlignment int) {
 		}
 		drawer.changeSize(opt.fontSize)
 		delta /= 2
-		// log.Printf("%v %v %v\n", x, opt.fontSize, i)
+		// logger.Printf("%v %v %v\n", x, opt.fontSize, i)
 		if /*(x <= 1<<6) ||*/ delta < 0.001 {
 			break
 		}
@@ -252,7 +259,7 @@ func drawGlyphs(str string, opt *options, dst draw.Image, vAlignment int) {
 	var paths []raster.Path
 	for _, r := range drawer.str {
 		// add basic distortion
-		if opt.distort {
+		if opt.Distort {
 			for i := range drawer.glyphCache[r].Points {
 				drawer.glyphCache[r].Points[i].X += drawer.pointToFixed(noise())
 				drawer.glyphCache[r].Points[i].Y += drawer.pointToFixed(noise())
@@ -271,7 +278,7 @@ func drawGlyphs(str string, opt *options, dst draw.Image, vAlignment int) {
 			e0 = e1
 		}
 		// draw outline with strokes if needed
-		if drawer.outlineWidth > 0.0 {
+		if !opt.DisableOutline {
 			rast.AddStroke(path, drawer.outlineWidth, nil, nil)
 		}
 		offset.X = startCoords.X + coords[i]
@@ -388,7 +395,7 @@ func extractColor(input string) color.RGBA {
 
 	n, err := strconv.ParseInt(input, 16, 32)
 	if err != nil {
-		log.Println(err)
+		logger.Println(err)
 		return color.RGBA{0, 0, 0, 255}
 	}
 

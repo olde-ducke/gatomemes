@@ -11,19 +11,38 @@ import (
 
 	pb "github.com/olde-ducke/gatomemes/src/drawtext"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
-	addr = flag.String("a", "localhost:50051", "the grpc server address to connect to")
-	out  = flag.String("o", "out.png", "output file name, will be saved at the working dir")
-	src  = flag.String("s", "", "(required) original image source or base64 encoded image, only "+
-		"jpeg and png formats are supported")
-	text = flag.String("t", "", "(required) text separated by next \"@\" symbol, 3 lines (top, "+
-		"middle, bottom) will be drawn in the centre of the source image")
+	addr      = flag.String("a", "localhost:50051", "")
+	src       = flag.String("s", "", "")
+	text      = flag.String("t", "", "")
+	out       = flag.String("o", "out.png", "")
+	names     = flag.Bool("fonts", false, "")
+	i         = flag.Int64("i", 0, "")
+	fScale    = flag.Int64("fscale", 0, "")
+	fColor    = flag.String("fcolor", "", "")
+	oColor    = flag.String("ocolor", "", "")
+	oScale    = flag.Int64("oscale", 0, "")
+	noOutline = flag.Bool("nooutline", false, "")
+	distort   = flag.Bool("distort", false, "")
 )
 
 func usage() {
-	fmt.Println("test")
+	fmt.Println(`
+grpc-client works with running server
+
+FLAGS:
+	-a		specify server address and port (default: "localhost:50051")
+	-s		source image url or base64 encoded data, only jpeg and png are supported
+	-t		text to draw over src, "@" will be replaced with "\n", up to 3 lines of text
+	-o		output file name, saves file in working dir output is always png (default: "out.png")
+	-h, --help	prints help message
+
+DRAWING OPTIONS:
+	    --fonts prints fonts file names available on server
+	`)
 }
 
 func main() {
@@ -39,14 +58,29 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
+	if *names {
+		reply, err := client.GetFontNames(ctx, &emptypb.Empty{})
+		if err != nil {
+			log.Fatalf("request failed with error: %v", err)
+		}
+		fmt.Println(reply.GetFilenames())
+		os.Exit(0)
+	}
+
 	reply, err := client.Draw(ctx, &pb.DrawRequest{
-		Src:  *src,
-		Text: *text,
+		Src:            *src,
+		Text:           *text,
+		Index:          *i,
+		FontScale:      *fScale,
+		FontColor:      *fColor,
+		OutlineColor:   *oColor,
+		OutlineScale:   *oScale,
+		DisableOutline: *noOutline,
+		Distort:        *distort,
 	})
 	if err != nil {
 		log.Fatalf("request failed with error: %v", err)
 	}
-	fmt.Println(reply.GetReply())
 
 	err = os.WriteFile(*out, reply.GetData(), fs.ModePerm)
 	if err != nil {
