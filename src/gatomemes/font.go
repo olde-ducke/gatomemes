@@ -56,10 +56,10 @@ type Options struct {
 
 var defaultOptions = &Options{
 	FontIndex:    0,
-	FontScale:    3,
+	FontScale:    2,
 	FontColor:    "ffffff",
 	OutlineColor: "000000",
-	OutlineScale: 4,
+	OutlineScale: 1,
 
 	fontSize:     64.0,
 	dpi:          72.0,
@@ -119,8 +119,8 @@ func filterOptions(opt *Options) *Options {
 }
 
 func newDrawer(text string, opt *Options) *textDrawer {
-	logger.Println("in newDrawer     font size:", opt.fontSize)
-	logger.Println("in newDrawer outline width:", opt.outlineWidth)
+	// logger.Println("in newDrawer     font size:", opt.fontSize)
+	// logger.Println("in newDrawer outline width:", opt.outlineWidth)
 	// FIXME: clamp relative to image size
 	if opt.fontSize <= 0.0 {
 		opt.fontSize = 64.0
@@ -150,8 +150,8 @@ func newDrawer(text string, opt *Options) *textDrawer {
 	drawer.outlineWidth = drawer.pointToFixed(opt.outlineWidth)
 	drawer.glyphCache = make(map[rune]*truetype.GlyphBuf, 0)
 	drawer.changeSize(opt.fontSize)
-	logger.Println("intermediate     font size:", drawer.fontScale)
-	logger.Println("intermediate outline width:", drawer.outlineWidth)
+	// logger.Println("intermediate     font size:", drawer.fontScale)
+	// logger.Println("intermediate outline width:", drawer.outlineWidth)
 
 	return drawer
 }
@@ -221,8 +221,8 @@ func drawGlyphs(str string, opt *Options, dst draw.Image, vAlignment int) {
 	dstWidth, dstHeight := dst.Bounds().Dx(), dst.Bounds().Dy()
 	opt.fontSize = float64(dstWidth*int(opt.FontScale)) / float64(64)        // magic number
 	opt.outlineWidth = float64(dstWidth*int(opt.OutlineScale)) / float64(48) // same
-	logger.Println("initial          font size:", opt.fontSize)
-	logger.Println("initial      outline width:", opt.outlineWidth)
+	// logger.Println("initial          font size:", opt.fontSize)
+	// logger.Println("initial      outline width:", opt.outlineWidth)
 
 	drawer := newDrawer(str, opt)
 
@@ -244,8 +244,8 @@ func drawGlyphs(str string, opt *Options, dst draw.Image, vAlignment int) {
 			break
 		}
 	}
-	logger.Println("final            font size:", drawer.fontScale)
-	logger.Println("final        outline width:", drawer.outlineWidth)
+	// logger.Println("final            font size:", drawer.fontScale)
+	// logger.Println("final        outline width:", drawer.outlineWidth)
 
 	startCoords := fixed.Point26_6{
 		X: (fixed.I(dstWidth) - width) / 2,

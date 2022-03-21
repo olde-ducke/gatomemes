@@ -60,30 +60,44 @@ func GetNew(key string, chaos bool) ([]byte, error) {
 	return img, err
 }
 
+// FIXME: very poorly organised, base64 input is not checked until read fully
 func handleURL(link string) ([]byte, string, error) {
 	var dataType string
+
+	// FIXME: dirty fix for sites like thiscatdoesnotexist.com, where
+	// one url leads to different images with different e-tags,
+	// append e-tag to url before checking in cache
+	resp, err := http.Get(link)
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+
+	link += resp.Header.Get("ETag")
+
 	data, err := rdb.Get(context.Background(), link).Bytes()
 	if err == redis.Nil {
-		resp, err := http.Get(link)
-		if err != nil {
-			return nil, "", err
+
+		dataType = resp.Header.Get("content-type")
+		if dataType != "image/jpeg" && dataType != "image/png" {
+			return nil, "", errors.New("unsupported data type")
 		}
-		defer resp.Body.Close()
 
 		data, err = io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, "", err
 		}
 
-		err = rdb.Set(context.Background(), link, data, time.Minute).Err()
+		err = rdb.Set(context.Background(), link, data, 24*time.Hour).Err()
 		if err != nil {
 			return nil, "", err
 		}
 
-		dataType = resp.Header.Get("content-type")
 	} else if err != nil {
 		return nil, "", err
 	} else {
+		logger.Println("match")
+		logger.Println(link)
 		dataType = http.DetectContentType(data)
 	}
 	return data, dataType, nil
