@@ -96,7 +96,7 @@ func filterOptions(opt *Options) *Options {
 		opt.FontIndex = opt.FontIndex % int64(len(fonts))
 
 		if opt.FontScale < 1 || opt.FontScale > 4 {
-			opt.FontScale = 3
+			opt.FontScale = 2
 		}
 
 		if opt.FontColor == "" {
@@ -108,7 +108,7 @@ func filterOptions(opt *Options) *Options {
 		}
 
 		if opt.OutlineScale < 1 || opt.OutlineScale > 4 {
-			opt.OutlineScale = 4
+			opt.OutlineScale = 1
 		}
 
 		if opt.dpi <= 0.0 || opt.dpi >= 96.0 {
@@ -118,13 +118,24 @@ func filterOptions(opt *Options) *Options {
 	return opt
 }
 
-func newDrawer(text string, opt *Options) (*textDrawer, error) {
-	if opt.fontSize <= 0.0 || opt.fontSize >= 120.0 {
+func newDrawer(text string, opt *Options) *textDrawer {
+	logger.Println("in newDrawer     font size:", opt.fontSize)
+	logger.Println("in newDrawer outline width:", opt.outlineWidth)
+	// FIXME: clamp relative to image size
+	if opt.fontSize <= 0.0 {
 		opt.fontSize = 64.0
 	}
 
-	if opt.outlineWidth <= 10.0 || opt.outlineWidth >= 50.0 {
+	if opt.fontSize >= 256 {
+		opt.fontSize = 256.0
+	}
+
+	if opt.outlineWidth <= 0.0 {
 		opt.outlineWidth = 10.0
+	}
+
+	if opt.outlineWidth >= 120.0 {
+		opt.outlineWidth = 120.0
 	}
 
 	drawer := &textDrawer{
@@ -139,8 +150,10 @@ func newDrawer(text string, opt *Options) (*textDrawer, error) {
 	drawer.outlineWidth = drawer.pointToFixed(opt.outlineWidth)
 	drawer.glyphCache = make(map[rune]*truetype.GlyphBuf, 0)
 	drawer.changeSize(opt.fontSize)
+	logger.Println("intermediate     font size:", drawer.fontScale)
+	logger.Println("intermediate outline width:", drawer.outlineWidth)
 
-	return drawer, nil
+	return drawer
 }
 
 func (drawer *textDrawer) getGlyphPositions() (positions []fixed.Int26_6) {
@@ -206,14 +219,12 @@ func drawGlyphs(str string, opt *Options, dst draw.Image, vAlignment int) {
 	opt = filterOptions(opt)
 
 	dstWidth, dstHeight := dst.Bounds().Dx(), dst.Bounds().Dy()
-	opt.fontSize = float64(dstWidth) / float64(8*opt.FontScale)         // magic number
-	opt.outlineWidth = float64(dstWidth) / float64(16*opt.OutlineScale) // same
+	opt.fontSize = float64(dstWidth*int(opt.FontScale)) / float64(64)        // magic number
+	opt.outlineWidth = float64(dstWidth*int(opt.OutlineScale)) / float64(48) // same
+	logger.Println("initial          font size:", opt.fontSize)
+	logger.Println("initial      outline width:", opt.outlineWidth)
 
-	drawer, err := newDrawer(str, opt)
-	if err != nil {
-		logger.Println(err)
-		return
-	}
+	drawer := newDrawer(str, opt)
 
 	textXOffset := drawer.outlineWidth
 	// FIXME: as broken as ever
@@ -233,6 +244,8 @@ func drawGlyphs(str string, opt *Options, dst draw.Image, vAlignment int) {
 			break
 		}
 	}
+	logger.Println("final            font size:", drawer.fontScale)
+	logger.Println("final        outline width:", drawer.outlineWidth)
 
 	startCoords := fixed.Point26_6{
 		X: (fixed.I(dstWidth) - width) / 2,

@@ -14,7 +14,7 @@ flags:
 drawing options (optional):
 
     -i,         use font with index i, font list can be obtained with --fonts flag
-    --fscale    font scale, scales counterintuitively, lower values give bigger glyphs
+    --fscale    relative font scale, higher values will give bigger glyphs (values: 1-4)
     --fcolor    rgb hex color as string, i.e. "ffffff", also supports "random" value, which will give random color
     --ocolor    same as above, but for outline
     --oscale    same as font scale, but for outline
