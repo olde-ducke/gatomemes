@@ -12,6 +12,8 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
+const maxMsgSize = 1024 * 1024 * 20
+
 var logger = log.New(os.Stdout, "\x1b[32m[RPC] \x1b[0m", log.LstdFlags)
 
 type server struct {
@@ -46,7 +48,7 @@ func grpcServerRun() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	s := grpc.NewServer()
+	s := grpc.NewServer(grpc.MaxSendMsgSize(maxMsgSize))
 	pb.RegisterDrawTextServer(s, &server{})
 	logger.Printf("grcp server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {

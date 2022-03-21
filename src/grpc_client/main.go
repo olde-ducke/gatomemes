@@ -11,8 +11,11 @@ import (
 
 	pb "github.com/olde-ducke/gatomemes/src/drawtext"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
+
+const maxMsgSize = 1024 * 1024 * 20
 
 var (
 	addr      = flag.String("a", "localhost:50051", "")
@@ -55,7 +58,8 @@ DRAWING OPTIONS (optional):
 func main() {
 	flag.Usage = usage
 	flag.Parse()
-	conn, err := grpc.Dial(*addr, grpc.WithInsecure())
+	conn, err := grpc.Dial(*addr, grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxMsgSize)))
 	if err != nil {
 		log.Fatalf("connection failed with error: %v", err)
 	}
