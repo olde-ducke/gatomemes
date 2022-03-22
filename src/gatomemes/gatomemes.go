@@ -43,6 +43,7 @@ func isValidURL(link string) bool {
 func GetNew(key string, chaos bool) ([]byte, error) {
 	var lines [2]string
 	var err error
+
 	if chaos {
 		lines, err = getChaoticLines()
 	} else {
@@ -65,9 +66,14 @@ func handleURL(link string) ([]byte, string, error) {
 	var dataType string
 
 	// FIXME: dirty fix for sites like thiscatdoesnotexist.com, where
-	// one url leads to different images with different e-tags,
-	// append e-tag to url before checking in cache
-	resp, err := http.Get(link)
+	// one url leads to different images with different ETags,
+	// append ETag to url before checking in cache
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	request, err := http.NewRequestWithContext(ctx, "GET", link, nil)
+
+	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return nil, "", err
 	}
@@ -95,11 +101,13 @@ func handleURL(link string) ([]byte, string, error) {
 
 	} else if err != nil {
 		return nil, "", err
+
 	} else {
 		logger.Println("match")
 		logger.Println(link)
 		dataType = http.DetectContentType(data)
 	}
+
 	return data, dataType, nil
 }
 
