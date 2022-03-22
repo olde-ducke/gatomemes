@@ -47,27 +47,16 @@ func rootHandler(c *gin.Context) {
 // fake /gato.jpeg response
 func imageHandler(c *gin.Context) {
 	identity := getIdentity(c)
-	imgbytes, err := gatomemes.GetImage(identity)
+	imgBytes, err := gatomemes.GetImage(identity)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	c.Data(http.StatusOK, "image/png", imgbytes)
+	c.Data(http.StatusOK, "image/png", imgBytes)
 }
 
 func newHandler(c *gin.Context) {
-	identity := getIdentity(c)
-	_, err := gatomemes.GetNew(identity, false)
-	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-	c.Redirect(http.StatusFound, "/")
-}
-
-func chaosHandler(c *gin.Context) {
-	identity := getIdentity(c)
-	_, err := gatomemes.GetNew(identity, true)
+	_, err := gatomemes.GetNew(c.Param("handler") == "chaotic")
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
@@ -115,8 +104,7 @@ func main() {
 	router.LoadHTMLFiles("templates/index.html")
 	router.GET("/", rootHandler)
 	router.GET("/gato.png", imageHandler)
-	router.GET("/new", newHandler)
-	router.GET("/chaos", chaosHandler)
+	router.GET("/new/*handler", newHandler)
 	router.POST("/login", loginFormHandler)
 	router.GET("/logout", logoutHandler)
 	router.Run(":8080")
