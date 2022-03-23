@@ -48,7 +48,6 @@ func pageHandler(c *gin.Context) {
 	// TODO: server internal errors
 	// if there is an error cookie change template accordingly
 	if err == nil {
-		log.Println("no session cookie")
 		c.SetCookie("error", "", -1, "/", "", false, true)
 		if text == "wrong_credentials" {
 			text = "nombre de usuario/contraseña incorrectos"
@@ -56,6 +55,7 @@ func pageHandler(c *gin.Context) {
 			text = "se toma el nombre de usuario "
 		}
 		c.HTML(http.StatusUnauthorized, "index.html", gin.H{
+			"id":        id,
 			"errortext": text,
 			"userinfo":  "hidden",
 		})
