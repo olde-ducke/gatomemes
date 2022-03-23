@@ -75,21 +75,32 @@ func CreateNew(chaos bool) (string, error) {
 	} else {
 		lines, err = getRandomLines()
 	}
-	// FIXME: no error checking
+
+	if err != nil {
+		return "", err
+	}
 
 	// FIXME: input string is very hacky
 	img, err := GetNewFromSrc(os.Getenv("PROJECTURL"), lines[0]+"@@"+lines[1], nil)
 	if err != nil {
 		return "", err
 	}
+
 	h := sha1.New()
-	t := time.Now()
 	h.Write(img)
 	id := base64.RawURLEncoding.EncodeToString(h.Sum(nil))
-	logger.Println(time.Now().Sub(t))
+
 	err = rdb.Set(context.Background(), id, img, time.Minute).Err()
+	if err != nil {
+		return "", err
+	}
+
 	err = rdb.SAdd(context.Background(), "results", id).Err()
-	return id, err
+	if err != nil {
+		return "", err
+	}
+
+	return id, nil
 }
 
 // FIXME: very poorly organised, base64 input is not checked until read fully

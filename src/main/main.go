@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -17,9 +18,12 @@ func rootHandler(c *gin.Context) {
 		c.AbortWithError(http.StatusInternalServerError, err)
 	}
 
-	if !c.IsAborted() {
-		c.Redirect(http.StatusFound, "/page/"+id)
+	if c.IsAborted() {
+		errorHandler(c)
+		return
 	}
+
+	c.Redirect(http.StatusFound, "/page/"+id)
 }
 
 // rendering template
@@ -35,6 +39,7 @@ func pageHandler(c *gin.Context) {
 	}
 
 	if c.IsAborted() {
+		errorHandler(c)
 		return
 	}
 
@@ -64,10 +69,9 @@ func pageHandler(c *gin.Context) {
 			"loginerror": "hidden",
 			"userinfo":   "hidden",
 		})
-		// log.Println("sessionkey not found: ", err)
 		return
 	}
-	//gatomemes.GetUserInfo(sessionKey)
+
 	result, err := gatomemes.GetUserInfo(sessionKey)
 	if err != nil {
 		c.SetCookie("sessionkey", "", -1, "/", "", false, true) // ???
@@ -79,7 +83,6 @@ func pageHandler(c *gin.Context) {
 		return
 	}
 	result["id"] = id
-	//log.Println(result)
 	c.HTML(http.StatusOK, "index.html", result)
 }
 
@@ -92,15 +95,19 @@ func imageHandler(c *gin.Context) {
 		c.AbortWithError(http.StatusInternalServerError, err)
 	}
 
-	if !c.IsAborted() {
-		c.Data(http.StatusOK, "image/png", imgBytes)
+	if c.IsAborted() {
+		errorHandler(c)
+		return
 	}
+
+	c.Data(http.StatusOK, "image/png", imgBytes)
 }
 
 func newHandler(c *gin.Context) {
 	id, err := gatomemes.CreateNew(c.Param("handler") == "chaotic")
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
+		errorHandler(c)
 		return
 	}
 	c.Redirect(http.StatusFound, "/page/"+id)
@@ -119,7 +126,8 @@ func loginFormHandler(c *gin.Context) {
 }
 
 func errorHandler(c *gin.Context) {
-	log.Println("resource not found")
+	status := c.Writer.Status()
+	c.Writer.WriteString(strconv.Itoa(status) + " " + http.StatusText(status))
 }
 
 func logoutHandler(c *gin.Context) {
