@@ -92,29 +92,30 @@ func (drawer *textDrawer) changeSize(size float64) {
 func filterOptions(opt *Options) *Options {
 	if opt == nil {
 		return defaultOptions
-	} else {
-		opt.FontIndex = opt.FontIndex % int64(len(fonts))
-
-		if opt.FontScale < 1 || opt.FontScale > 4 {
-			opt.FontScale = 2
-		}
-
-		if opt.FontColor == "" {
-			opt.FontColor = "ffffff"
-		}
-
-		if opt.OutlineColor == "" {
-			opt.OutlineColor = "000000"
-		}
-
-		if opt.OutlineScale < 1 || opt.OutlineScale > 4 {
-			opt.OutlineScale = 1
-		}
-
-		if opt.dpi <= 0.0 || opt.dpi >= 96.0 {
-			opt.dpi = 72.0
-		}
 	}
+
+	opt.FontIndex = opt.FontIndex % int64(len(fonts))
+
+	if opt.FontScale < 1 || opt.FontScale > 4 {
+		opt.FontScale = 2
+	}
+
+	if opt.FontColor == "" {
+		opt.FontColor = "ffffff"
+	}
+
+	if opt.OutlineColor == "" {
+		opt.OutlineColor = "000000"
+	}
+
+	if opt.OutlineScale < 1 || opt.OutlineScale > 4 {
+		opt.OutlineScale = 1
+	}
+
+	if opt.dpi <= 0.0 || opt.dpi >= 96.0 {
+		opt.dpi = 72.0
+	}
+
 	return opt
 }
 
