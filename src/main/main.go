@@ -3,14 +3,41 @@ package main
 import (
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 
 	"github.com/olde-ducke/gatomemes/src/gatomemes"
 )
 
-// rendering template
 func rootHandler(c *gin.Context) {
+	id, err := gatomemes.GetRandomImageID()
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+	}
+
+	if !c.IsAborted() {
+		c.Redirect(http.StatusFound, "/page/"+id)
+	}
+}
+
+// rendering template
+func pageHandler(c *gin.Context) {
+	id := c.Param("id")
+	valid, err := gatomemes.IsValidID(id)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+	}
+
+	if !valid {
+		c.AbortWithStatus(http.StatusNotFound)
+	}
+
+	if c.IsAborted() {
+		return
+	}
+
 	getIdentity(c)
 	text, err := c.Cookie("error")
 	// TODO: server internal errors
@@ -23,13 +50,20 @@ func rootHandler(c *gin.Context) {
 		} else {
 			text = "se toma el nombre de usuario "
 		}
-		c.HTML(http.StatusUnauthorized, "index.html", gin.H{"errortext": text, "userinfo": "hidden"})
+		c.HTML(http.StatusUnauthorized, "index.html", gin.H{
+			"errortext": text,
+			"userinfo":  "hidden",
+		})
 		return
 	}
 
 	sessionKey, err := c.Cookie("sessionkey")
 	if err != nil {
-		c.HTML(http.StatusOK, "index.html", gin.H{"loginerror": "hidden", "userinfo": "hidden"})
+		c.HTML(http.StatusOK, "index.html", gin.H{
+			"id":         id,
+			"loginerror": "hidden",
+			"userinfo":   "hidden",
+		})
 		// log.Println("sessionkey not found: ", err)
 		return
 	}
@@ -37,31 +71,39 @@ func rootHandler(c *gin.Context) {
 	result, err := gatomemes.GetUserInfo(sessionKey)
 	if err != nil {
 		c.SetCookie("sessionkey", "", -1, "/", "", false, true) // ???
-		c.HTML(http.StatusOK, "index.html", gin.H{"loginerror": "hidden", "userinfo": "hidden"})
+		c.HTML(http.StatusOK, "index.html", gin.H{
+			"id":         id,
+			"loginerror": "hidden",
+			"userinfo":   "hidden",
+		})
 		return
 	}
+	result["id"] = id
 	//log.Println(result)
 	c.HTML(http.StatusOK, "index.html", result)
 }
 
-// fake /gato.jpeg response
 func imageHandler(c *gin.Context) {
-	identity := getIdentity(c)
-	imgBytes, err := gatomemes.GetImage(identity)
-	if err != nil {
+	id := strings.TrimSuffix(c.Param("id"), ".png")
+	imgBytes, err := gatomemes.GetImage(id)
+	if err == redis.Nil {
+		c.AbortWithStatus(http.StatusNotFound)
+	} else if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
-		return
 	}
-	c.Data(http.StatusOK, "image/png", imgBytes)
+
+	if !c.IsAborted() {
+		c.Data(http.StatusOK, "image/png", imgBytes)
+	}
 }
 
 func newHandler(c *gin.Context) {
-	_, err := gatomemes.GetNew(c.Param("handler") == "chaotic")
+	id, err := gatomemes.CreateNew(c.Param("handler") == "chaotic")
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	c.Redirect(http.StatusFound, "/")
+	c.Redirect(http.StatusFound, "/page/"+id)
 }
 
 func loginFormHandler(c *gin.Context) {
@@ -74,6 +116,10 @@ func loginFormHandler(c *gin.Context) {
 		c.SetCookie("identity", identity, 86400, "/", "", false, true)
 		c.Redirect(http.StatusFound, "/")
 	}
+}
+
+func errorHandler(c *gin.Context) {
+	log.Println("resource not found")
 }
 
 func logoutHandler(c *gin.Context) {
@@ -103,10 +149,12 @@ func main() {
 
 	router.LoadHTMLFiles("templates/index.html")
 	router.GET("/", rootHandler)
-	router.GET("/gato.png", imageHandler)
-	router.GET("/new/*handler", newHandler)
+	router.GET("/page/:id", pageHandler)
+	router.GET("/gato/:id", imageHandler)
+	router.GET("/new/:handler", newHandler)
 	router.POST("/login", loginFormHandler)
 	router.GET("/logout", logoutHandler)
+	router.NoRoute(errorHandler)
 	router.Run(":8080")
 	// TODO: fix static files
 }

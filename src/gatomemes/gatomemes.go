@@ -3,6 +3,7 @@ package gatomemes
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
 	"encoding/base64"
 	"errors"
 	"io"
@@ -27,12 +28,37 @@ func fatalError(text string, err error) {
 
 func GetImage(key string) ([]byte, error) {
 	data, err := rdb.Get(context.Background(), key).Bytes()
-	if err == redis.Nil {
-		return GetNew(key, false)
-	} else if err != nil {
+	if err != nil {
 		return nil, err
 	}
 	return data, nil
+}
+
+func GetRandomImageID() (string, error) {
+	id, err := rdb.SRandMember(context.Background(), "results").Result()
+	if err == redis.Nil {
+		return CreateNew(false)
+	} else if err != nil {
+		return "", err
+	}
+
+	_, err = GetImage(id)
+	if err == redis.Nil {
+		logger.Println("image id:", id, "not found")
+		rdb.SRem(context.Background(), "results", id)
+		return GetRandomImageID()
+	} else if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+func IsValidID(id string) (bool, error) {
+	result, err := rdb.Exists(context.Background(), id).Result()
+	if err != nil {
+		return false, err
+	}
+	return result == 1, nil
 }
 
 func isValidURL(link string) bool {
@@ -40,7 +66,7 @@ func isValidURL(link string) bool {
 	return err == nil && u.Scheme != "" && u.Host != ""
 }
 
-func GetNew(key string, chaos bool) ([]byte, error) {
+func CreateNew(chaos bool) (string, error) {
 	var lines [2]string
 	var err error
 
@@ -54,11 +80,16 @@ func GetNew(key string, chaos bool) ([]byte, error) {
 	// FIXME: input string is very hacky
 	img, err := GetNewFromSrc(os.Getenv("PROJECTURL"), lines[0]+"@@"+lines[1], nil)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-
-	err = rdb.Set(context.Background(), key, img, time.Minute).Err()
-	return img, err
+	h := sha1.New()
+	t := time.Now()
+	h.Write(img)
+	id := base64.RawURLEncoding.EncodeToString(h.Sum(nil))
+	logger.Println(time.Now().Sub(t))
+	err = rdb.Set(context.Background(), id, img, time.Minute).Err()
+	err = rdb.SAdd(context.Background(), "results", id).Err()
+	return id, err
 }
 
 // FIXME: very poorly organised, base64 input is not checked until read fully
