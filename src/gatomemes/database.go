@@ -21,7 +21,14 @@ func getUUIDString() string {
 }
 
 func getRandomLines() (lines [2]string, err error) {
-	rows, err := db.Query("SELECT line1, line2 FROM gatomemes WHERE id = ?", getRandomID())
+	rows, err := db.Query(
+		`SELECT line1, line2 FROM gatomemes AS Q1 JOIN
+			(SELECT (RAND() *
+				(SELECT MAX(id) FROM gatomemes)) AS id) AS Q2
+		WHERE Q1.id >= Q2.id
+		ORDER BY Q1.id ASC
+		LIMIT 1`,
+	)
 	if err != nil {
 		return lines, err
 	}
@@ -38,35 +45,32 @@ func getRandomLines() (lines [2]string, err error) {
 
 // FIXME: fails if there is no such id in DB
 func getChaoticLines() (lines [2]string, err error) {
-	rows, err := db.Query("SELECT Q1.line1, Q2.line2 FROM gatomemes Q1, gatomemes Q2 WHERE Q1.id = ? and Q2.id = ?",
-		getRandomID(), getRandomID())
+	q1, err := getRandomLines()
 	if err != nil {
 		return lines, err
 	}
-	defer rows.Close()
 
-	rows.Next()
-	err = rows.Scan(&lines[0], &lines[1])
+	q2, err := getRandomLines()
 	if err != nil {
 		return lines, err
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	switch rand.Intn(4) {
+	case 0:
+		lines[0] = q1[0]
+		lines[1] = q2[1]
+	case 1:
+		lines[0] = q2[0]
+		lines[1] = q1[1]
+	case 2:
+		lines[0] = q1[1]
+		lines[1] = q2[0]
+	case 3:
+		lines[0] = q2[1]
+		lines[1] = q1[0]
 	}
 	return lines, nil
-}
-
-func getRandomID() int {
-	rand.Seed(time.Now().UnixNano())
-	return rand.Intn(getMaxID()) + 1
-}
-
-func getMaxID() (id int) {
-	rows, err := db.Query("SELECT MAX(id) FROM gatomemes")
-	fatalError("getMaxID: ", err)
-	defer rows.Close()
-
-	rows.Next()
-	err = rows.Scan(&id)
-	fatalError("getMaxID: ", err)
-	return id
 }
 
 func addNewUser(login string, password string, identity string) (string, string, error) {
@@ -126,16 +130,17 @@ func updateSession(login string, gotPassword string, identity string) (sessionKe
 
 	// generate new session key
 	sessionKey = getUUIDString()
-	if bcrypterr := bcrypt.CompareHashAndPassword([]byte(wantPassword), []byte(gotPassword)); bcrypterr == nil {
+	bcryptErr := bcrypt.CompareHashAndPassword([]byte(wantPassword), []byte(gotPassword))
+	if bcryptErr == nil {
 		logger.Println("successfull login")
 		_, err = db.Exec("UPDATE user SET session_key = ? WHERE identity = ?", sessionKey, identityDB)
 		if err != nil {
 			return "", "", err
 		}
 		return sessionKey, identityDB, nil
-	} else {
-		logger.Println(bcrypterr)
 	}
+
+	logger.Println(bcryptErr)
 	logger.Println("wrong password")
 	return "", "", accessErr
 }
