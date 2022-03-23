@@ -82,12 +82,24 @@ func pageHandler(c *gin.Context) {
 		})
 		return
 	}
+
 	result["id"] = id
 	c.HTML(http.StatusOK, "index.html", result)
 }
 
 func imageHandler(c *gin.Context) {
 	id := strings.TrimSuffix(c.Param("id"), ".png")
+	c.Header("Etag", id)
+	if id == c.Request.Header.Get("If-None-Match") {
+		valid, err := gatomemes.IsValidID(id)
+		if err != nil {
+			c.AbortWithError(http.StatusInternalServerError, err)
+		} else if valid {
+			c.Status(http.StatusNotModified)
+			return
+		}
+	}
+
 	imgBytes, err := gatomemes.GetImage(id)
 	if err == redis.Nil {
 		c.AbortWithStatus(http.StatusNotFound)
