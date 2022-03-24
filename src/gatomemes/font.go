@@ -5,7 +5,6 @@ import (
 	"image/color"
 	"image/draw"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"os"
 	"strconv"
@@ -268,6 +267,7 @@ func drawGlyphs(str string, opt *Options, dst draw.Image, vAlignment int) {
 	mask := image.NewRGBA(dst.Bounds())
 	painter := raster.NewRGBAPainter(mask)
 	rast := raster.NewRasterizer(mask.Bounds().Dx(), mask.Bounds().Dy())
+	rast.UseNonZeroWinding = true
 	rast.Clear()
 
 	var paths []raster.Path
@@ -299,14 +299,8 @@ func drawGlyphs(str string, opt *Options, dst draw.Image, vAlignment int) {
 		paths = append(paths, path)
 		i++
 	}
-	// not sure if resetting back to false is needed,
-	// non-zero winding prevents nulling of areas
-	// with self-intersecting, by default set to false,
-	// which doesn't break regular contour drawing
 	painter.SetColor(drawer.outlineColor)
-	rast.UseNonZeroWinding = true
 	rast.Rasterize(painter)
-	rast.UseNonZeroWinding = false
 
 	// second pass draw glyph itself
 	rast.Clear()
@@ -429,13 +423,20 @@ func noise() float64 {
 func init() {
 	filenames := strings.Fields(os.Getenv("PROJECTFONTS"))
 	if len(filenames) == 0 {
-		log.Fatal("no fonts found")
+		logger.Fatal("no fonts found")
 	}
+
 	for _, filename := range filenames {
 		fontBytes, err := ioutil.ReadFile(filename)
-		fatalError("init: ", err)
+		if err != nil {
+			logger.Fatal("init: ", err)
+		}
+
 		f, err := freetype.ParseFont(fontBytes)
-		fatalError("init: ", err)
+		if err != nil {
+			logger.Fatal("init: ", err)
+		}
+
 		fonts = append(fonts, f)
 	}
 }
