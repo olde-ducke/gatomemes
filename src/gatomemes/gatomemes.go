@@ -1,11 +1,11 @@
 package gatomemes
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha1"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -19,12 +19,6 @@ import (
 
 var rdb *redis.Client
 var logger = log.New(os.Stdout, "\x1b[31m[GAT] \x1b[0m", log.LstdFlags)
-
-func fatalError(text string, err error) {
-	if err != nil {
-		log.Fatal(text, err)
-	}
-}
 
 func GetImage(key string) ([]byte, error) {
 	data, err := rdb.Get(context.Background(), key).Bytes()
@@ -42,14 +36,17 @@ func GetRandomImageID() (string, error) {
 		return "", err
 	}
 
-	_, err = GetImage(id)
-	if err == redis.Nil {
-		logger.Println("image id:", id, "not found")
-		rdb.SRem(context.Background(), "results", id)
-		return GetRandomImageID()
-	} else if err != nil {
+	valid, err := IsValidID(id)
+	if err != nil {
 		return "", err
 	}
+
+	if !valid {
+		logger.Println("image id:", id, "is gone")
+		rdb.SRem(context.Background(), "results", id)
+		return GetRandomImageID()
+	}
+
 	return id, nil
 }
 
@@ -81,7 +78,7 @@ func CreateNew(chaos bool) (string, error) {
 	}
 
 	// FIXME: input string is very hacky
-	img, err := GetNewFromSrc(os.Getenv("PROJECTURL"), lines[0]+"@@"+lines[1], nil)
+	img, err := GetNewFromSrc(os.Getenv("PROJECTSRC"), lines[0]+"@@"+lines[1], nil)
 	if err != nil {
 		return "", err
 	}
@@ -105,11 +102,6 @@ func CreateNew(chaos bool) (string, error) {
 
 // FIXME: very poorly organised, base64 input is not checked until read fully
 func handleURL(link string) ([]byte, string, error) {
-	var dataType string
-
-	// FIXME: dirty fix for sites like thiscatdoesnotexist.com, where
-	// one url leads to different images with different ETags,
-	// append ETag to url before checking in cache
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
@@ -121,13 +113,17 @@ func handleURL(link string) ([]byte, string, error) {
 	}
 	defer resp.Body.Close()
 
-	link += resp.Header.Get("ETag")
+	// FIXME: dirty fix for sites like thiscatdoesnotexist.com, where
+	// one url leads to different images with different ETags,
+	// append ETag to url before checking in cache
+	link = fmt.Sprintf("%s%s", link, resp.Header.Get("ETag"))
 
+	var mimeType string
 	data, err := rdb.Get(context.Background(), link).Bytes()
 	if err == redis.Nil {
-
-		dataType = resp.Header.Get("content-type")
-		if dataType != "image/jpeg" && dataType != "image/png" {
+		mimeType = resp.Header.Get("content-type")
+		// do not even attempt to download wrong content type data
+		if mimeType != "image/jpeg" && mimeType != "image/png" {
 			return nil, "", errors.New("unsupported data type")
 		}
 
@@ -145,12 +141,10 @@ func handleURL(link string) ([]byte, string, error) {
 		return nil, "", err
 
 	} else {
-		logger.Println("match")
-		logger.Println(link)
-		dataType = http.DetectContentType(data)
+		logger.Println("match:", link)
 	}
 
-	return data, dataType, nil
+	return data, mimeType, nil
 }
 
 func GetNewFromSrc(src string, text string, opt *Options) ([]byte, error) {
@@ -168,13 +162,11 @@ func GetNewFromSrc(src string, text string, opt *Options) ([]byte, error) {
 
 	if isValidURL(src) {
 		data, dataType, err = handleURL(src)
-	} else if data, err = base64.StdEncoding.DecodeString(src); err == nil {
-		dataType = http.DetectContentType(data)
-	} else {
+	} else if data, err = base64.StdEncoding.DecodeString(src); err != nil {
 		return nil, errors.New("source unrecognized")
 	}
 
-	dst, err := decodeImage(dataType, bytes.NewReader(data))
+	dst, err := decodeImage(data, dataType)
 	if err != nil {
 		return nil, err
 	}
@@ -187,10 +179,11 @@ func GetNewFromSrc(src string, text string, opt *Options) ([]byte, error) {
 		drawGlyphs(text, opt, dst, vAlignment)
 	}
 
-	img, err := encodeImage(dst)
+	img, err := encodePNG(dst)
 	if err != nil {
 		return nil, err
 	}
+
 	return img, nil
 }
 
@@ -210,6 +203,7 @@ func HandleLogin(request *http.Request, identity string) (string, string, error)
 	if sessionKey != "" {
 		return sessionKey, identity, nil
 	}
+
 	return "", "", err
 }
 
@@ -219,8 +213,6 @@ func GetUserInfo(sessionKey string) (result map[string]interface{}, err error) {
 		logger.Println(err)
 		return result, err
 	}
-	result["loginerror"] = "hidden"
-	result["loginform"] = "hidden"
 	return result, err
 }
 

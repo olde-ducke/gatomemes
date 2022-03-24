@@ -2,20 +2,14 @@ package gatomemes
 
 import (
 	"bytes"
-	"errors"
 	"image"
 	"image/draw"
-	"image/jpeg"
 	"image/png"
-	"io"
 	"os"
-	"path/filepath"
 )
 
-var imgbytes []byte
-
-func encodeImage(src image.Image) ([]byte, error) {
-	buffer := new(bytes.Buffer)
+func encodePNG(src image.Image) ([]byte, error) {
+	buffer := &bytes.Buffer{}
 	err := png.Encode(buffer, src)
 	if err != nil {
 		return nil, err
@@ -23,66 +17,34 @@ func encodeImage(src image.Image) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func decodeImage(fileType string, reader io.Reader) (draw.Image, error) {
-	switch fileType {
-	case "image/png":
-		img, err := png.Decode(reader)
-		if err != nil {
-			return nil, err
-		}
-		if img, ok := img.(draw.Image); ok {
-			return img, nil
-		}
-	case "image/jpeg":
-		img, err := jpeg.Decode(reader)
-		if err != nil {
-			return nil, err
-		}
-		if img, ok := img.(*image.YCbCr); ok {
-			return jpegToPng(img)
-		}
-	}
-	return nil, errors.New("unsupported format")
-
-}
-
-func openLocalImage(path string) (draw.Image, error) {
-	file, err := os.Open(path)
+func decodeImage(data []byte, mimeType string) (draw.Image, error) {
+	d, err := newDecoder(data, mimeType)
 	if err != nil {
 		return nil, err
 	}
 
-	switch filepath.Ext(path) {
-	case ".png":
-		return decodeImage("image/png", file)
-	case ".jpg":
-		return decodeImage("image/jpeg", file)
-	}
-	return nil, errors.New("unsupported format")
+	return d.decode()
 }
 
-func jpegToPng(src *image.YCbCr) (draw.Image, error) {
-	var out draw.Image
-	out = image.NewNRGBA(src.Bounds())
-
-	for y := 0; y < src.Bounds().Dy(); y++ {
-		for x := 0; x < src.Bounds().Dx(); x++ {
-			srcColor := src.At(x, y)
-			out.Set(x, y, srcColor)
-		}
+func openLocalImage(path string) (draw.Image, error) {
+	file, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
 	}
-	return out, nil
+
+	return decodeImage(file, "")
 }
 
-func savePngOnDisk(img image.Image, path string) error {
+func saveImageOnDisk(img image.Image, path string) error {
 	file, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
+
 	if err = png.Encode(file, img); err != nil {
 		return err
 	}
-	return nil
 
+	return nil
 }
