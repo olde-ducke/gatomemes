@@ -123,7 +123,7 @@ func handleURL(link string) ([]byte, string, error) {
 	if err == redis.Nil {
 		mimeType = resp.Header.Get("content-type")
 		// do not even attempt to download wrong content type data
-		if mimeType != "image/jpeg" && mimeType != "image/png" {
+		if mimeType != "image/jpeg" && mimeType != "image/png" && mimeType != "image/bmp" {
 			return nil, "", errors.New("unsupported data type")
 		}
 

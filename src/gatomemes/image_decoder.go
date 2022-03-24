@@ -9,19 +9,21 @@ import (
 	"image/png"
 	"io"
 	"net/http"
+
+	"golang.org/x/image/bmp"
 )
 
 var unsupportedError = errors.New("unsupported format")
 
 type decoder interface {
-	decode() (draw.Image, error)
+	decode() (image.Image, error)
 }
 
 type decoderPNG struct {
 	r io.Reader
 }
 
-func (decoder *decoderPNG) decode() (draw.Image, error) {
+func (decoder *decoderPNG) decode() (image.Image, error) {
 	img, err := png.Decode(decoder.r)
 	if err != nil {
 		return nil, err
@@ -30,18 +32,22 @@ func (decoder *decoderPNG) decode() (draw.Image, error) {
 	printColorReport(img)
 
 	// TODO: fix png with indexed colors
-	if img, ok := img.(draw.Image); ok {
-		return img, nil
+	if _, ok := img.(*image.NRGBA); !ok {
+		return convertToNRGBA(img), nil
 	}
 
-	return nil, unsupportedError
+	if _, ok := img.(*image.NRGBA); !ok {
+		return convertToNRGBA(img), nil
+	}
+
+	return img, nil
 }
 
 type decoderJPEG struct {
 	r io.Reader
 }
 
-func (decoder *decoderJPEG) decode() (draw.Image, error) {
+func (decoder *decoderJPEG) decode() (image.Image, error) {
 	img, err := jpeg.Decode(decoder.r)
 	if err != nil {
 		return nil, err
@@ -49,11 +55,26 @@ func (decoder *decoderJPEG) decode() (draw.Image, error) {
 
 	printColorReport(img)
 
-	if img, ok := img.(*image.YCbCr); ok {
-		return convertToRGBA(img)
+	return convertToNRGBA(img), nil
+}
+
+type decoderBMP struct {
+	r io.Reader
+}
+
+func (decoder *decoderBMP) decode() (image.Image, error) {
+	img, err := bmp.Decode(decoder.r)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, unsupportedError
+	printColorReport(img)
+
+	if _, ok := img.(*image.NRGBA); !ok {
+		return convertToNRGBA(img), nil
+	}
+
+	return img, nil
 }
 
 func newDecoder(data []byte, mimeType string) (decoder, error) {
@@ -63,11 +84,15 @@ func newDecoder(data []byte, mimeType string) (decoder, error) {
 		mimeType = http.DetectContentType(data)
 	}
 
+	logger.Println(mimeType)
+
 	switch mimeType {
 	case "image/png":
 		return &decoderPNG{r: reader}, nil
 	case "image/jpeg":
 		return &decoderJPEG{r: reader}, nil
+	case "image/bmp":
+		return &decoderBMP{r: reader}, nil
 	}
 
 	return nil, unsupportedError
@@ -100,7 +125,7 @@ func printColorReport(img image.Image) {
 	logger.Println("YCbCr:   ", ok)
 }
 
-func convertToRGBA(src image.Image) (draw.Image, error) {
+func convertToNRGBA(src image.Image) image.Image {
 	var out draw.Image
 	out = image.NewNRGBA(src.Bounds())
 
@@ -110,5 +135,5 @@ func convertToRGBA(src image.Image) (draw.Image, error) {
 			out.Set(x, y, srcColor)
 		}
 	}
-	return out, nil
+	return out
 }

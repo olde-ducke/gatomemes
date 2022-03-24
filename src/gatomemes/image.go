@@ -23,7 +23,16 @@ func decodeImage(data []byte, mimeType string) (draw.Image, error) {
 		return nil, err
 	}
 
-	return d.decode()
+	img, err := d.decode()
+	if err != nil {
+		return nil, err
+	}
+
+	if img, ok := img.(draw.Image); ok {
+		return img, nil
+	}
+
+	return nil, unsupportedError
 }
 
 func openLocalImage(path string) (draw.Image, error) {
