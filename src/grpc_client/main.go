@@ -34,7 +34,9 @@ var (
 
 func usage() {
 	fmt.Println(`
-grpc-client works with running server
+grpc-client, works with running server
+
+can be used to draw text over source image, result is saved in working directory
 
 FLAGS:
  -a             specify server address and port (default: "localhost:50051")

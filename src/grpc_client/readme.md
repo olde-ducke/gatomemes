@@ -1,6 +1,8 @@
 # grpc-client
 
-grpc-client works with running server
+grpc-client, works with running server
+
+can be used to draw text over source image, result is saved in working directory
 
 flags:
 
@@ -27,4 +29,4 @@ running command:
 
 will produce image:
 
-![Example](./assets/out.png)
+![Example](./out.png)
