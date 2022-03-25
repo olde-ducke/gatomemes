@@ -29,7 +29,7 @@ func (decoder *decoderPNG) decode() (image.Image, error) {
 		return nil, err
 	}
 
-	printColorReport(img)
+	// printColorReport(img)
 
 	// TODO: fix png with indexed colors
 	if _, ok := img.(*image.NRGBA); !ok {
@@ -53,7 +53,7 @@ func (decoder *decoderJPEG) decode() (image.Image, error) {
 		return nil, err
 	}
 
-	printColorReport(img)
+	// printColorReport(img)
 
 	return convertToNRGBA(img), nil
 }
@@ -68,7 +68,7 @@ func (decoder *decoderBMP) decode() (image.Image, error) {
 		return nil, err
 	}
 
-	printColorReport(img)
+	// printColorReport(img)
 
 	if _, ok := img.(*image.NRGBA); !ok {
 		return convertToNRGBA(img), nil
@@ -83,8 +83,6 @@ func newDecoder(data []byte, mimeType string) (decoder, error) {
 	if mimeType == "" {
 		mimeType = http.DetectContentType(data)
 	}
-
-	logger.Println(mimeType)
 
 	switch mimeType {
 	case "image/png":

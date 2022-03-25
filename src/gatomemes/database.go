@@ -145,21 +145,26 @@ func updateSession(login string, gotPassword string, identity string) (sessionKe
 	return "", "", accessErr
 }
 
-func retrieveUserInfo(sessionKey string) (result map[string]interface{}, err error) {
-	result = make(map[string]interface{})
+func retrieveUserInfo(sessionKey string) (map[string]interface{}, error) {
 	row := db.QueryRow("SELECT user_name, reg_time, is_disabled, is_admin, is_root FROM user WHERE session_key = ?", sessionKey)
+
 	var isDisabled, isAdmin, isRoot bool
 	var name, regTime string
-	err = row.Scan(&name, &regTime, &isDisabled, &isAdmin, &isRoot)
+	err := row.Scan(&name, &regTime, &isDisabled, &isAdmin, &isRoot)
 	if err != nil {
 		logger.Println("user with given key not found")
-		return result, err
+		return nil, err
 	}
-	result["username"] = name
-	result["regtime"] = regTime
-	result["isdisabled"] = isDisabled
-	result["isadmin"] = isAdmin
-	result["isroot"] = isRoot
+
+	result := map[string]interface{}{
+		"username":   name,
+		"regtime":    regTime,
+		"isdisabled": isDisabled,
+		"isadmin":    isAdmin,
+		"isroot":     isRoot,
+		"loginerror": "hidden",
+		"loginform":  "hidden",
+	}
 	return result, nil
 }
 
@@ -181,9 +186,14 @@ func init() {
 	// Get a database handle.
 	var err error
 	db, err = sql.Open("mysql", cfg.FormatDSN())
-	fatalError("database handle: ", err)
+	if err != nil {
+		logger.Fatal("database init: ", err)
+	}
 
 	err = db.Ping()
-	fatalError("pingErr: ", err)
+	if err != nil {
+		logger.Fatal("pingErr: ", err)
+	}
+
 	logger.Println("succesfully connected to mysql")
 }
