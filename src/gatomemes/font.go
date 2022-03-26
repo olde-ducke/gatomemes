@@ -6,9 +6,8 @@ import (
 	"image/draw"
 	"io/ioutil"
 	"math/rand"
-	"os"
+	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/golang/freetype"
@@ -429,7 +428,11 @@ func noise() float64 {
 }
 
 func init() {
-	filenames := strings.Fields(os.Getenv("APP_FONTS"))
+	filenames, err := filepath.Glob("./fonts/*.ttf")
+	if err != nil {
+		logger.Fatal(err)
+	}
+
 	if len(filenames) == 0 {
 		logger.Fatal("no fonts found")
 	}
