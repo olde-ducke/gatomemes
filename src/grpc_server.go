@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 
 	pb "github.com/olde-ducke/gatomemes/src/drawtext"
 	"github.com/olde-ducke/gatomemes/src/gatomemes"
@@ -40,7 +41,8 @@ func (s *server) Draw(ctx context.Context, in *pb.DrawRequest) (*pb.DrawReply, e
 
 func (s *server) GetFontNames(ctx context.Context, in *emptypb.Empty) (*pb.TextReply, error) {
 	logger.Println("received request for font names")
-	return &pb.TextReply{Filenames: "available fonts:\n" + os.Getenv("APP_FONTS")}, nil
+	return &pb.TextReply{Filenames: "available fonts:\n" +
+		strings.Join(gatomemes.GetFontNames(), "\n")}, nil
 }
 
 func grpcServerRun() {

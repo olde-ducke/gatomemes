@@ -66,6 +66,14 @@ var defaultOptions = &Options{
 	outlineWidth: 10.0,
 }
 
+func GetFontNames() []string {
+	names := make([]string, 0, len(fonts))
+	for _, f := range fonts {
+		names = append(names, f.Name(truetype.NameIDPostscriptName))
+	}
+	return names
+}
+
 func (drawer *textDrawer) pointToFixed(f float64) fixed.Int26_6 {
 	return fixed.Int26_6(f * float64(drawer.dpi) * (64.0 / 72.0))
 }
