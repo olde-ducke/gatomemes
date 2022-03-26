@@ -22,7 +22,7 @@ type server struct {
 
 func (s *server) Draw(ctx context.Context, in *pb.DrawRequest) (*pb.DrawReply, error) {
 	logger.Printf("received src: \"%s\" text: \"%s\"", in.GetSrc(), in.GetText())
-	data, err := gatomemes.GetNewFromSrc(in.GetSrc(), in.GetText(),
+	data, err := gatomemes.CreateNewFromSrc(in.GetSrc(), in.GetText(),
 		&gatomemes.Options{
 			FontIndex:      in.GetIndex(),
 			FontScale:      in.GetFontScale(),
@@ -40,11 +40,11 @@ func (s *server) Draw(ctx context.Context, in *pb.DrawRequest) (*pb.DrawReply, e
 
 func (s *server) GetFontNames(ctx context.Context, in *emptypb.Empty) (*pb.TextReply, error) {
 	logger.Println("received request for font names")
-	return &pb.TextReply{Filenames: "available fonts:\n" + os.Getenv("PROJECTFONTS")}, nil
+	return &pb.TextReply{Filenames: "available fonts:\n" + os.Getenv("APP_FONTS")}, nil
 }
 
 func grpcServerRun() {
-	lis, err := net.Listen("tcp", os.Getenv("GRPCADDR"))
+	lis, err := net.Listen("tcp", os.Getenv("GRPC_ADDR"))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}

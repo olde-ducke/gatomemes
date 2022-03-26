@@ -421,7 +421,7 @@ func noise() float64 {
 }
 
 func init() {
-	filenames := strings.Fields(os.Getenv("PROJECTFONTS"))
+	filenames := strings.Fields(os.Getenv("APP_FONTS"))
 	if len(filenames) == 0 {
 		logger.Fatal("no fonts found")
 	}

@@ -177,11 +177,11 @@ func init() {
 	// setup DB
 	// Capture connection properties.
 	cfg := mysql.Config{
-		User:   os.Getenv("DBUSER"),
-		Passwd: os.Getenv("DBPASS"),
+		User:   os.Getenv("MYSQL_USER"),
+		Passwd: os.Getenv("MYSQL_PASS"),
 		Net:    "tcp",
-		Addr:   "127.0.0.1:3306",
-		DBName: "gatomemes",
+		Addr:   os.Getenv("MYSQL_HOST"),
+		DBName: os.Getenv("MYSQL_DB"),
 	}
 	// Get a database handle.
 	var err error

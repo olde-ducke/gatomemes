@@ -78,7 +78,7 @@ func CreateNew(chaos bool) (string, error) {
 	}
 
 	// FIXME: input string is very hacky
-	img, err := GetNewFromSrc(os.Getenv("PROJECTSRC"), lines[0]+"@@"+lines[1], nil)
+	img, err := CreateNewFromSrc(os.Getenv("APP_SOURCE"), lines[0]+"@@"+lines[1], nil)
 	if err != nil {
 		return "", err
 	}
@@ -147,7 +147,7 @@ func handleURL(link string) ([]byte, string, error) {
 	return data, mimeType, nil
 }
 
-func GetNewFromSrc(src string, text string, opt *Options) ([]byte, error) {
+func CreateNewFromSrc(src string, text string, opt *Options) ([]byte, error) {
 	if src == "" {
 		return nil, errors.New("image source is empty")
 	}
@@ -229,8 +229,9 @@ func GenerateUUID() string {
 
 func init() {
 	rdb = redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: os.Getenv("RDBPASS"),
+		Addr:     os.Getenv("RDB_HOST"),
+		Username: os.Getenv("RDB_USER"),
+		Password: os.Getenv("RDB_PASS"),
 		DB:       0,
 	})
 }
