@@ -78,6 +78,30 @@ func pageHandler(c *gin.Context) {
 	c.HTML(http.StatusOK, "index.html", result)
 }
 
+type Element struct {
+	Name  string
+	Value string
+}
+
+func galleryHandler(c *gin.Context) {
+	data := make(map[string][]Element)
+	for i := 0; i < 15; i++ {
+		link, err := gatomemes.GetRandomImageID()
+		if err != nil {
+			c.AbortWithError(http.StatusInternalServerError, err)
+			break
+		}
+		data["test"] = append(data["test"], Element{"test2", link})
+	}
+
+	if c.IsAborted() {
+		errorHandler(c)
+		return
+	}
+
+	c.HTML(http.StatusOK, "gallery.html", data)
+}
+
 func imageHandler(c *gin.Context) {
 	id := strings.TrimSuffix(c.Param("id"), ".png")
 	c.Header("Etag", id)
@@ -157,13 +181,14 @@ func getIdentity(c *gin.Context) string {
 func httpServerRun() {
 	router := gin.Default()
 
-	router.LoadHTMLFiles("templates/index.html")
+	router.LoadHTMLFiles("templates/index.html", "templates/gallery.html")
 	router.GET("/", rootHandler)
 	router.GET("/page/:id", pageHandler)
 	router.GET("/gato/:id", imageHandler)
 	router.GET("/new/:handler", newHandler)
 	router.POST("/login", loginFormHandler)
 	router.GET("/logout", logoutHandler)
+	router.GET("/gallery", galleryHandler)
 	router.NoRoute(errorHandler)
 	router.Run(":8080")
 	// TODO: fix static files
