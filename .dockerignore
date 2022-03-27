@@ -1,0 +1,7 @@
+.git/
+img/
+src/grpc_client/
+.dockerignore
+.gitignore
+LICENSE
+readme.md

@@ -1,0 +1,48 @@
+version: "3.8" 
+
+  ##test
+
+services:
+  app:
+    depends_on:
+      - mysql
+      - redis
+    build:
+      context: ./
+    container_name: server
+    hostname: server
+    ports:
+      - 8080:8080
+      - 50051:50051
+    volumes:
+      - ./:/app
+    environment:
+      APP_SOURCE: https://thiscatdoesnotexist.com
+      GRPC_ADDR: server:50051
+      MYSQL_HOST: mysql
+      MYSQL_USER: root
+      MYSQL_PASS: secret
+      MYSQL_DB: gatomemes
+      RDB_HOST: redis:6379
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  redis:
+    image: redis:7.0-rc2
+    container_name: redis
+    volumes:
+      - gatomemes-redis:/usr/local/etc/redis
+
+  mysql:
+    image: mysql:8.0.28
+    container_name: mysql
+    volumes:
+      - gatomemes-mysql:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: gatomemes
+
+volumes:
+  gatomemes-mysql:
+  gatomemes-redis:
